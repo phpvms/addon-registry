@@ -46,6 +46,14 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: node scripts/probe-r2.mjs
 
+      - name: Fetch published index from R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: node scripts/probe-r2-fetch.mjs
+
       - name: Probe worker refresh
         if: inputs.worker_url != ''
         env:
