@@ -15,8 +15,6 @@
  *
  * Environment:
  *   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
- *   WORKER_REFRESH_SECRET
- *   WORKER_REFRESH_URL (optional; default https://api.registry.phpvms.net/v1/internal/refresh)
  */
 
 import path from 'node:path';
@@ -70,33 +68,8 @@ async function main(): Promise<void> {
 		console.error(`R2 upload failed: ${(err as Error).message}`);
 		process.exit(1);
 	}
+
 	console.log('R2 uploads complete.');
-
-	if (!flags.refresh) {
-		console.log('Skipping worker refresh (--no-refresh).');
-		return;
-	}
-
-	const refreshSecret = process.env.WORKER_REFRESH_SECRET;
-	if (!refreshSecret) {
-		console.error('WORKER_REFRESH_SECRET is required for refresh; pass --no-refresh to skip.');
-		process.exit(1);
-	}
-	const url = process.env.WORKER_REFRESH_URL ?? DEFAULT_REFRESH_URL;
-	const res = await fetch(url, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${refreshSecret}`,
-			'Content-Type': 'application/json',
-		},
-		body: '{}',
-	});
-	if (!res.ok) {
-		const text = await res.text().catch(() => '<no body>');
-		console.error(`Worker refresh failed: HTTP ${res.status}; body: ${text}`);
-		process.exit(1);
-	}
-	console.log(`Worker refresh OK (HTTP ${res.status}).`);
 }
 
 main().catch((err) => {
