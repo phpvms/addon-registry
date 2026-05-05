@@ -3,9 +3,9 @@ name: Publish index
 on:
   push:
     branches: [main]
-    paths:
-      - 'packages/**'
-      - 'schema/**'
+    # paths:
+    #   - 'packages/**'
+    #   - 'schema/**'
   workflow_dispatch:
 
 permissions:
