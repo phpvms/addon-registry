@@ -1,5 +1,6 @@
 name: phpvms/smoke-test
-description: Disposable smoke-test fixture used to verify the addon-registry pipeline. Not a real plugin.
+description: Disposable smoke-test fixture used to verify the addon-registry
+  pipeline. Not a real plugin.
 category: dev-tools
 license: MIT
 keywords:
@@ -11,3 +12,10 @@ source:
 requirements:
   php: ^8.2
   phpvms: ^7.0
+release:
+  version: "0.1.0"
+  tag: "v0.1.0"
+  zip_url: "https://github.com/nabeelio/phpvms-registry-smoke-test/releases/downl\
+    oad/v0.1.0/smoke-test-addon-0.1.0.zip"
+  sha256: "7d9dbb362b933534f49ffb654ce63c9f07824d78de4945d4c142e78e6a8786e7"
+  published_at: "2026-05-05T01:25:53Z"
