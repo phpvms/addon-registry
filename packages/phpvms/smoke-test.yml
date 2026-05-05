@@ -19,3 +19,5 @@ release:
     oad/v0.1.0/smoke-test-addon-0.1.0.zip"
   sha256: "7d9dbb362b933534f49ffb654ce63c9f07824d78de4945d4c142e78e6a8786e7"
   published_at: "2026-05-05T01:25:53Z"
+revoked: true
+revoked_reason: Smoke-test fixture; revoked to verify pipeline behavior.
