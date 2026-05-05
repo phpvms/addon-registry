@@ -55,20 +55,41 @@ function readEnv(): Env {
 	};
 }
 
-function changedYamlFiles(repoRoot: string, baseSha: string, headSha: string): string[] {
-	// `git diff` pathspecs do NOT support `**`; passing it makes git look for
-	// a literal directory of that name and silently match nothing. Use an
-	// unfiltered diff and filter in JS instead — same outcome, no traps.
-	const out = execFileSync('git', ['diff', '--name-only', `${baseSha}...${headSha}`], {
-		cwd: repoRoot,
-		encoding: 'utf8',
-	});
-	return out
+/**
+ * Parse `git diff --name-only` output into the subset of paths the
+ * validator should inspect: package YAMLs (excluding meta.yml).
+ *
+ * Exported for unit testing. Callers feed the raw stdout from
+ * `git diff --name-only --diff-filter=ACMRT BASE...HEAD` so deleted
+ * paths never reach this filter — `runPackageChecks` would otherwise
+ * crash with ENOENT trying to read a file that no longer exists in
+ * HEAD (regression discovered while exercising task 12.7 of
+ * bootstrap-addon-registry).
+ */
+export function filterPackageYamlPaths(diffOutput: string): string[] {
+	return diffOutput
 		.split('\n')
 		.map((l) => l.trim())
 		.filter((l) => l.length > 0)
 		.filter((l) => l.startsWith('packages/') && l.endsWith('.yml'))
 		.filter((l) => path.basename(l) !== 'meta.yml');
+}
+
+function changedYamlFiles(repoRoot: string, baseSha: string, headSha: string): string[] {
+	// `git diff` pathspecs do NOT support `**`; passing it makes git look for
+	// a literal directory of that name and silently match nothing. Use an
+	// unfiltered diff and filter in JS instead — same outcome, no traps.
+	//
+	// `--diff-filter=ACMRT` excludes deleted (`D`) paths so the validator
+	// does not try to read a YAML file the PR removed. Renamed/copied
+	// entries surface their *new* path under these letters, which is what
+	// we want to validate.
+	const out = execFileSync(
+		'git',
+		['diff', '--name-only', '--diff-filter=ACMRT', `${baseSha}...${headSha}`],
+		{ cwd: repoRoot, encoding: 'utf8' },
+	);
+	return filterPackageYamlPaths(out);
 }
 
 async function main(): Promise<void> {
@@ -116,7 +137,13 @@ async function main(): Promise<void> {
 	console.log('\nValidation passed.');
 }
 
-main().catch((err) => {
-	console.error(err);
-	process.exit(1);
-});
+// Only auto-run when invoked as a script, not when imported (e.g. from
+// unit tests). `process.argv[1]` is the entry point file path; ESM has
+// no `require.main === module` equivalent so we compare paths via URL.
+const entryUrl = process.argv[1] ? new URL(`file://${path.resolve(process.argv[1])}`).href : '';
+if (import.meta.url === entryUrl) {
+	main().catch((err) => {
+		console.error(err);
+		process.exit(1);
+	});
+}
