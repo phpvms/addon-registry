@@ -1,0 +1,47 @@
+name: Release block PR
+
+# After an author PR merges to main, scan for newly merged YAMLs that lack
+# a release: block, and open a bot PR appending the resolved release block
+# (one PR per package). The bot PR runs through validate-pr like any other.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**/*.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: release-block-pr-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  open-prs:
+    if: github.repository == (vars.CANONICAL_REPO || 'phpvms/addon-registry')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up bot env (App token)
+        id: env
+        uses: ./.github/actions/setup-bot-env
+        with:
+          generate-token: 'true'
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Identify YAMLs added without a release block
+        id: detect
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_TOKEN: ${{ steps.env.outputs.app-token }}
+        # Discovery's normal behaviour already opens a release-block PR for
+        # any YAML lacking a `release:` block. We invoke it in `merge` mode
+        # so it processes everything that just landed plus any drift.
+        run: npm run -s discovery -- --merge

@@ -1,0 +1,140 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "https://registry.phpvms.net/schema/package.schema.json",
+	"title": "phpVMS addon registry package",
+	"type": "object",
+	"additionalProperties": false,
+	"required": ["name", "description", "category", "license", "keywords", "source", "requirements"],
+	"properties": {
+		"name": {
+			"type": "string",
+			"description": "Namespaced identifier `{author}/{package}`. Lowercase, digits, hyphens; segments at least two characters.",
+			"pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]/[a-z0-9][a-z0-9-]*[a-z0-9]$"
+		},
+		"description": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 500
+		},
+		"category": {
+			"type": "string",
+			"description": "Single category drawn from schema/categories.yml. Validated dynamically at runtime against that file."
+		},
+		"license": {
+			"type": "string",
+			"minLength": 1,
+			"description": "SPDX license identifier (validated by string presence here; deeper validation is out of scope for v1)."
+		},
+		"keywords": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"minLength": 1
+			},
+			"description": "Free-form tags. Order is preserved into the published index."
+		},
+		"source": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["type", "repository"],
+			"properties": {
+				"type": {
+					"const": "github-release"
+				},
+				"repository": {
+					"type": "string",
+					"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$",
+					"description": "GitHub repository in `owner/repo` format."
+				}
+			}
+		},
+		"requirements": {
+			"type": "object",
+			"required": ["php", "phpvms"],
+			"properties": {
+				"php": {
+					"type": "string",
+					"minLength": 1
+				},
+				"phpvms": {
+					"type": "string",
+					"minLength": 1
+				},
+				"extensions": {
+					"description": "Deferred to v2; ignored by the v1 validator.",
+					"type": "array",
+					"items": { "type": "string" }
+				}
+			},
+			"additionalProperties": true
+		},
+		"release": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["version", "tag", "zip_url", "sha256", "published_at"],
+			"properties": {
+				"version": {
+					"type": "string",
+					"description": "SemVer triple without leading `v`. Pre-release suffixes are rejected.",
+					"pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+				},
+				"tag": {
+					"type": "string",
+					"minLength": 1,
+					"description": "Literal git tag as published on GitHub (may include leading `v`)."
+				},
+				"zip_url": {
+					"type": "string",
+					"format": "uri",
+					"pattern": "^https://"
+				},
+				"sha256": {
+					"type": "string",
+					"pattern": "^[a-f0-9]{64}$"
+				},
+				"published_at": {
+					"type": "string",
+					"format": "date-time"
+				}
+			}
+		},
+		"revoked": {
+			"type": "boolean"
+		},
+		"revoked_reason": {
+			"type": "string",
+			"minLength": 1
+		},
+		"archived": {
+			"type": "boolean"
+		},
+		"archived_reason": {
+			"type": "string",
+			"minLength": 1
+		}
+	},
+	"allOf": [
+		{
+			"if": {
+				"required": ["revoked_reason"]
+			},
+			"then": {
+				"properties": {
+					"revoked": { "const": true }
+				},
+				"required": ["revoked"]
+			}
+		},
+		{
+			"if": {
+				"required": ["archived_reason"]
+			},
+			"then": {
+				"properties": {
+					"archived": { "const": true }
+				},
+				"required": ["archived"]
+			}
+		}
+	]
+}

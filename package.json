@@ -1,0 +1,40 @@
+{
+	"name": "@phpvms/addon-registry",
+	"version": "0.0.0",
+	"private": true,
+	"description": "phpVMS addon registry — curated catalogue, validation, and index publishing",
+	"type": "module",
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"validate": "tsx scripts/validate.ts",
+		"resolve-release": "tsx scripts/resolve-release.ts",
+		"append-release-block": "tsx scripts/append-release-block.ts",
+		"discovery": "tsx scripts/discovery.ts",
+		"build-index": "tsx scripts/build-index.ts",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"format": "prettier --write ."
+	},
+	"dependencies": {
+		"@aws-sdk/client-s3": "^3.658.0",
+		"@octokit/rest": "^21.0.2",
+		"@types/yauzl": "^2.10.3",
+		"ajv": "^8.17.1",
+		"ajv-formats": "^3.0.1",
+		"php-parser": "^3.2.2",
+		"semver": "^7.6.3",
+		"yaml": "^2.6.0",
+		"yauzl": "^3.3.0"
+	},
+	"devDependencies": {
+		"@types/node": "^22.7.5",
+		"@types/semver": "^7.5.8",
+		"prettier": "^3.3.3",
+		"tsx": "^4.19.1",
+		"typescript": "^5.6.2",
+		"vitest": "^2.1.1"
+	}
+}

@@ -1,0 +1,67 @@
+name: Validate PR
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/**'
+      - 'schema/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: validate-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    # Skip on forks: APP_TOKEN secret is not available there, and the
+    # production validator must only run against the canonical repo.
+    # Set the `CANONICAL_REPO` repository variable (Settings -> Variables)
+    # to override the default.
+    if: github.repository == (vars.CANONICAL_REPO || 'phpvms/addon-registry')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up bot env (App token)
+        id: env
+        uses: ./.github/actions/setup-bot-env
+        with:
+          generate-token: 'true'
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Run validator
+        id: run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_TOKEN: ${{ steps.env.outputs.app-token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: npm run -s validate
+
+      - name: Apply error label on bot PRs (failure)
+        if: failure() && startsWith(github.event.pull_request.head.ref, 'bot/')
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          OUTCOME: fail
+          APP_TOKEN: ${{ steps.env.outputs.app-token }}
+        run: npx tsx scripts/apply-error-label.ts
+
+      - name: Remove error label on bot PRs (success)
+        if: success() && startsWith(github.event.pull_request.head.ref, 'bot/')
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          OUTCOME: pass
+          APP_TOKEN: ${{ steps.env.outputs.app-token }}
+        run: npx tsx scripts/apply-error-label.ts

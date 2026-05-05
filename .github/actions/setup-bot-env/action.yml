@@ -1,0 +1,36 @@
+name: Set up bot env
+description: Checkout, set up Node 22, install deps, and (optionally) generate a phpvms-addon-bot installation token.
+inputs:
+  generate-token:
+    description: When 'true', mint an App installation token and expose it as APP_TOKEN.
+    required: false
+    default: 'false'
+  app-id:
+    description: GitHub App ID (used when generate-token=true).
+    required: false
+    default: ''
+  app-private-key:
+    description: GitHub App private key PEM (used when generate-token=true).
+    required: false
+    default: ''
+outputs:
+  app-token:
+    description: The installation token, when generate-token=true.
+    value: ${{ steps.gen-token.outputs.token }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: npm
+    - name: Install dependencies
+      shell: bash
+      run: npm ci --no-audit --no-fund
+    - name: Generate App token
+      if: inputs.generate-token == 'true'
+      id: gen-token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.app-private-key }}
