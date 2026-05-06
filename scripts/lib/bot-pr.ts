@@ -17,12 +17,7 @@
 
 import type { Octokit } from '@octokit/rest';
 import { Buffer } from 'node:buffer';
-import {
-	enableAutoMerge,
-	findOpenPrByBranch,
-	openPullRequest,
-	type RepoIdentity,
-} from './github.js';
+import { findOpenPrByBranch, openPullRequest, type RepoIdentity } from './github.js';
 
 export interface CommitFileParams {
 	owner: string;
@@ -198,6 +193,11 @@ export async function commitFileToBranch(
  * High-level: open or update a bot PR. If an open PR exists for the same
  * branch, no new PR is created (the commit alone updates the branch).
  * Returns the PR number.
+ *
+ * The PR is opened without auto-merge. The bot-pr-auto-merge workflow
+ * (.github/workflows/bot-pr-auto-merge.yml) self-merges this PR once
+ * required checks pass and a tamper check confirms every commit is
+ * bot-authored.
  */
 export async function openOrUpdateBotPr(
 	client: Octokit,
@@ -213,16 +213,11 @@ export async function openOrUpdateBotPr(
 	if (existing) {
 		return { number: existing, created: false };
 	}
-	const { number, nodeId } = await openPullRequest(client, repo, {
+	const { number } = await openPullRequest(client, repo, {
 		title: params.title,
 		head: params.branch,
 		base: params.baseBranch,
 		body: params.body,
-	});
-	await enableAutoMerge(client, nodeId).catch((err) => {
-		// Auto-merge may not be available if the repo's branch protection
-		// doesn't allow it. Surface as a warning rather than failing the run.
-		console.warn(`Failed to enable auto-merge on PR #${number}: ${(err as Error).message}`);
 	});
 	return { number, created: true };
 }

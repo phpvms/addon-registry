@@ -155,8 +155,9 @@ export async function removeLabel(client: Octokit, repo: RepoIdentity, issueNumb
 }
 
 /**
- * Open a pull request and enable squash auto-merge. Returns the PR number
- * and node ID. Caller is responsible for ensuring the source branch exists.
+ * Open a pull request. Returns the PR number and node ID. Caller is
+ * responsible for ensuring the source branch exists. Auto-merge is not
+ * enabled here; the bot-pr-auto-merge workflow handles self-merge.
  */
 export async function openPullRequest(
 	client: Octokit,
@@ -177,21 +178,6 @@ export async function openPullRequest(
 		body: params.body,
 	});
 	return { number: data.number, nodeId: data.node_id, htmlUrl: data.html_url };
-}
-
-/**
- * Enable squash auto-merge on a pull request. Uses the GraphQL endpoint
- * because REST does not expose this control directly.
- */
-export async function enableAutoMerge(client: Octokit, prNodeId: string): Promise<void> {
-	const mutation = `
-		mutation Enable($id: ID!) {
-			enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: SQUASH }) {
-				pullRequest { id }
-			}
-		}
-	`;
-	await client.graphql(mutation, { id: prNodeId });
 }
 
 /** Find an open PR by head branch name. Returns the PR number or null. */

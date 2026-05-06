@@ -240,8 +240,8 @@ function renderBumpBody(opts: { pkg: PackageRef; resolved: ResolvedRelease; pinn
 		`- Zip URL: ${resolved.zip_url}`,
 		`- SHA-256: \`${resolved.sha256}\``,
 		'',
-		`This PR is opened by \`phpvms-addon-bot\` and has auto-merge enabled.`,
-		`If validation fails, the bot will apply the \`error\` label.`,
+		`This PR is opened by \`phpvms-addon-bot\` and self-merges once the required checks pass.`,
+		`If validation fails, the bot will apply the \`error\` label and the PR stays open for review.`,
 	].join('\n');
 }
 

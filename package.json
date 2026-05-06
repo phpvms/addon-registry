@@ -12,6 +12,7 @@
 		"resolve-release": "tsx scripts/resolve-release.ts",
 		"append-release-block": "tsx scripts/append-release-block.ts",
 		"discovery": "tsx scripts/discovery.ts",
+		"merge-bot-pr": "tsx scripts/merge-bot-pr.ts",
 		"build-index": "tsx scripts/build-index.ts",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
