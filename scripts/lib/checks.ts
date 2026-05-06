@@ -237,7 +237,7 @@ export async function runPackageChecks(opts: {
 		});
 	}
 
-	// 12. module.json schema + identity
+	// 12. module.json registry identity (registry_id must match)
 	let moduleParsed: unknown;
 	try {
 		const bytes = await readEntry(inspection.bytes, moduleEntry);

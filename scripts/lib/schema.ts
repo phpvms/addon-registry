@@ -106,20 +106,6 @@ export function buildMetaValidator(): SimpleValidator {
 	};
 }
 
-/** Validator for the `module.json` shipped inside an addon zip. */
-export function buildModuleValidator(): SimpleValidator {
-	const ajv = buildAjv();
-	const schema = readSchema(path.join(SCHEMA_DIR, 'module.schema.json'));
-	const validate = ajv.compile(schema) as ValidateFunction<unknown>;
-	return {
-		validate(data: unknown): ValidationResult {
-			const ok = validate(data);
-			const errors = formatErrors(validate.errors);
-			return { valid: ok, errors };
-		},
-	};
-}
-
 export function formatErrorList(errors: SchemaError[]): string {
 	return errors.map((e) => `  - ${e.path}: ${e.message}`).join('\n');
 }

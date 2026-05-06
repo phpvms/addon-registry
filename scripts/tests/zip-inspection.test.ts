@@ -4,8 +4,9 @@ import { buildZip } from './helpers/zip-builder.js';
 import { listEntries, findRootEntry, readEntry, findForbiddenEntries, sha256 } from '../lib/zip.js';
 
 const MODULE_JSON = JSON.stringify({
-	name: 'acme/reports',
-	alias: 'acme/reports',
+	name: 'AcmeReports',
+	alias: 'acme-reports',
+	registry_id: 'acme/reports',
 	description: 'Reports',
 	keywords: [],
 	active: true,

@@ -6,8 +6,9 @@ import { lintMigration } from '../lib/migration-lint.js';
 import { checkModuleIdentity } from '../lib/module-identity.js';
 
 const VALID_MODULE_JSON = JSON.stringify({
-	name: 'acme/reports',
-	alias: 'acme/reports',
+	name: 'AcmeReports',
+	alias: 'acme-reports',
+	registry_id: 'acme/reports',
 	description: 'Reports',
 	keywords: [],
 	active: true,

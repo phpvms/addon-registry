@@ -25,8 +25,10 @@ in the same PR.
 - A public GitHub repository for your addon.
 - At least one published GitHub release with a zip asset attached.
 - The zip contains `module.json` at its root (not inside a subdirectory).
-- The zip's `module.json` declares `alias` equal to your registry
-  name (e.g. `acme/reports`). The `name` field is informational only.
+- The zip's `module.json` declares `registry_id` equal to your registry
+  name (e.g. `acme/reports`). The `name` and `alias` fields are owned
+  by phpVMS core (Laravel-Modules) and are not inspected by the
+  registry.
 - All migrations under `Database/Migrations/` follow the rules in
   [Part 2](#part-2-migration-rules).
 
@@ -118,7 +120,7 @@ as the primary contact.
 5. **Zip integrity** — downloadable, contains `module.json` at the root,
    no forbidden paths (`.git/`, `.github/`, `tests/`, `node_modules/`,
    `.idea/`, `.vscode/`, `.DS_Store`, `Tests/`).
-6. **module.json** — schema-valid; `alias` equals the registry name.
+6. **module.json** — `registry_id` equals the registry name. No other field is checked.
 7. **Migration lint** — see [Part 2](#part-2-migration-rules).
 
 The validator posts a single comment summarising results. If everything
