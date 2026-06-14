@@ -26,10 +26,16 @@ CI.
 - A public GitHub repository for your addon.
 - At least one published GitHub release with a zip asset attached.
 - The zip contains `module.json` at its root (not inside a subdirectory).
-- The zip's `module.json` declares `registry_id` equal to your registry
-  name (e.g. `acme/reports`). The `name` and `alias` fields are owned
-  by phpVMS core (Laravel-Modules) and are not inspected by the
-  registry.
+- The zip's `module.json` declares:
+  - `registry_id` equal to your registry name (e.g. `acme/reports`),
+  - `schema_version` (integer, `1` for current addons),
+  - `type` — `module` or `theme`,
+  - `description` — a non-empty string,
+  - if present, `database.tables` entries all start with `{author}_`
+    (e.g. `acme_reports_runs`).
+
+  The `name` and `alias` fields are owned by phpVMS core (Laravel-Modules)
+  and are not inspected by the registry.
 - All migrations under `Database/Migrations/` follow the rules in
   [Part 2](#part-2-migration-rules).
 
@@ -119,7 +125,10 @@ is not validated by CI.
 5. **Zip integrity** — downloadable, contains `module.json` at the root,
    no forbidden paths (`.git/`, `.github/`, `tests/`, `node_modules/`,
    `.idea/`, `.vscode/`, `.DS_Store`, `Tests/`).
-6. **module.json** — `registry_id` equals the registry name. No other field is checked.
+6. **module.json** — `registry_id` equals the registry name;
+   `schema_version` (int), `type` (`module`/`theme`), and `description`
+   are present; any declared `database.tables` are namespaced under
+   `{author}_`.
 7. **Migration lint** — see [Part 2](#part-2-migration-rules).
 
 CI is a plain pass/fail check. Read the workflow logs for the per-rule

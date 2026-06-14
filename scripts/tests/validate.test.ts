@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { checkFilenameMatchesName, checkPath, checkReservedName, schemaValidate } from '../validate.ts';
+import { checkModuleManifest } from '../lib/module-manifest.ts';
 
 describe('structural checks', () => {
 	test('checkPath accepts packages/{a}/{b}.yml', () => {
@@ -55,5 +56,47 @@ describe('schema validation', () => {
 
 	test('accepts revoked: true with revoked_reason', () => {
 		expect(schemaValidate({ ...valid, revoked: true, revoked_reason: 'unsafe' })).toEqual([]);
+	});
+});
+
+describe('module.json manifest', () => {
+	const valid = {
+		registry_id: 'acme/reports',
+		schema_version: 1,
+		type: 'module',
+		description: 'Reports addon',
+	};
+
+	test('accepts a complete valid manifest', () => {
+		expect(checkModuleManifest(valid, 'acme/reports').valid).toBe(true);
+	});
+
+	test('requires registry_id to equal the registry name', () => {
+		const { errors } = checkModuleManifest({ ...valid, registry_id: 'other/x' }, 'acme/reports');
+		expect(errors.some((e) => e.rule === 'module-identity')).toBe(true);
+	});
+
+	test('requires schema_version, type, and description', () => {
+		const r1 = checkModuleManifest({ ...valid, schema_version: '1' }, 'acme/reports');
+		expect(r1.errors.some((e) => e.rule === 'module-schema-version')).toBe(true);
+		const r2 = checkModuleManifest({ ...valid, type: 'plugin' }, 'acme/reports');
+		expect(r2.errors.some((e) => e.rule === 'module-type')).toBe(true);
+		const r3 = checkModuleManifest({ ...valid, description: '  ' }, 'acme/reports');
+		expect(r3.errors.some((e) => e.rule === 'module-description')).toBe(true);
+	});
+
+	test('accepts type theme', () => {
+		expect(checkModuleManifest({ ...valid, type: 'theme' }, 'acme/reports').valid).toBe(true);
+	});
+
+	test('enforces database.tables author prefix', () => {
+		const ok = checkModuleManifest({ ...valid, database: { tables: ['acme_reports_runs'] } }, 'acme/reports');
+		expect(ok.valid).toBe(true);
+		const bad = checkModuleManifest({ ...valid, database: { tables: ['users', 'acme_reports_runs'] } }, 'acme/reports');
+		expect(bad.errors.some((e) => e.rule === 'module-tables')).toBe(true);
+	});
+
+	test('rejects a non-object manifest', () => {
+		expect(checkModuleManifest(null, 'acme/reports').valid).toBe(false);
 	});
 });

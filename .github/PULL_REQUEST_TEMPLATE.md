@@ -22,6 +22,8 @@ If you are adding a new addon, please confirm:
 - [ ] My repo has at least one **published release** with a **zip asset**
 - [ ] The zip contains `module.json` at the **root** (not inside a subdirectory)
 - [ ] The zip's `module.json` declares `registry_id` equal to my registry name (e.g. `acme/reports`)
+- [ ] The zip's `module.json` declares `schema_version`, `type` (`module`/`theme`), and a non-empty `description`
+- [ ] Any `database.tables` in `module.json` are namespaced under `{author}_`
 - [ ] My migrations follow the [migration rules](../docs/plugin-authors.md#part-2-migration-rules)
 
 ## Why this addon

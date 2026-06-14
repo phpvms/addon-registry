@@ -32,7 +32,7 @@ import { readYaml, type PackageYaml } from './lib/yaml.js';
 import { buildPackageValidator } from './lib/schema.js';
 import { isRepoPublic, listReleases, parseRepository, pickZipAsset, type RepoIdentity } from './lib/github.js';
 import { fetchAndInspectZip, findForbiddenEntries, findRootEntry, readEntryByName } from './lib/zip.js';
-import { checkModuleIdentity } from './lib/module-identity.js';
+import { checkModuleManifest } from './lib/module-manifest.js';
 import { lintMigration } from './lib/migration-lint.js';
 
 export interface CheckIssue {
@@ -227,7 +227,7 @@ export async function runPackageChecks(opts: { repoRoot: string; yamlRelPath: st
 		});
 	}
 
-	// 11. module.json registry identity (registry_id must match name)
+	// 11. module.json manifest (identity + required fields + table namespace)
 	let moduleParsed: unknown;
 	try {
 		const bytes = await readEntryByName(inspection.bytes, moduleEntry.name);
@@ -236,8 +236,8 @@ export async function runPackageChecks(opts: { repoRoot: string; yamlRelPath: st
 		outcome.issues.push({ rule: 'module-json-parse', message: `Failed to parse module.json: ${(err as Error).message}` });
 		return outcome;
 	}
-	const identity = checkModuleIdentity(moduleParsed, data.name);
-	for (const e of identity.errors) outcome.issues.push({ rule: 'module-identity', message: e });
+	const manifest = checkModuleManifest(moduleParsed, data.name);
+	outcome.issues.push(...manifest.errors);
 
 	// 12. Migration lint
 	const author = data.name.split('/')[0]!;
