@@ -33,9 +33,11 @@ addons:
     revoked_reason: 'Arbitrary file write in v1.x. See https://example.com/security-advisory.'
 ```
 
-Both fields are required when revoking. The validator skips upstream
-checks for revoked entries (so the PR passes even if the source repo no
-longer exists or the release zip is broken).
+`revoked: true` is the flag that matters; a `revoked_reason` is strongly
+recommended but not enforced by the schema. (The schema does enforce the
+reverse: a `revoked_reason` may not appear without `revoked: true`.) The
+validator skips upstream checks for revoked entries (so the PR passes even
+if the source repo no longer exists or the release zip is broken).
 
 ## How to archive
 
@@ -48,8 +50,9 @@ addons:
     archived_reason: 'Author has stopped maintaining this addon. See acme/reports2 for a successor.'
 ```
 
-`archived_reason` is required. Upstream checks are also skipped for
-archived entries.
+An `archived_reason` is strongly recommended but not enforced by the
+schema (and, as with revocation, may not appear without `archived: true`).
+Upstream checks are also skipped for archived entries.
 
 ## What the registry does after revocation/archival
 
