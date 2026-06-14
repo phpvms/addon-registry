@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { checkFilenameMatchesName, checkPath, checkReservedName, schemaValidate } from '../validate.ts';
 import { checkModuleManifest } from '../lib/module-manifest.ts';
+import { getSource, SUPPORTED_SOURCE_TYPES } from '../lib/sources/index.ts';
+import { parseRepository } from '../lib/sources/github.ts';
 
 describe('structural checks', () => {
 	test('checkPath accepts packages/{a}/{b}.yml', () => {
@@ -98,5 +100,54 @@ describe('module.json manifest', () => {
 
 	test('rejects a non-object manifest', () => {
 		expect(checkModuleManifest(null, 'acme/reports').valid).toBe(false);
+	});
+});
+
+describe('source registry', () => {
+	test('resolves the github-release source by type', () => {
+		const source = getSource('github-release');
+		expect(source?.type).toBe('github-release');
+	});
+
+	test('returns undefined for an unknown source type', () => {
+		expect(getSource('gitlab-release')).toBeUndefined();
+	});
+
+	test('advertises supported source types', () => {
+		expect(SUPPORTED_SOURCE_TYPES).toContain('github-release');
+	});
+
+	test('parseRepository splits owner/repo and rejects malformed input', () => {
+		expect(parseRepository('acme/reports-addon')).toEqual({ owner: 'acme', repo: 'reports-addon' });
+		expect(() => parseRepository('not-a-repo')).toThrow();
+	});
+});
+
+describe('source.type schema', () => {
+	const base = {
+		name: 'acme/reports',
+		description: 'Reports addon',
+		category: 'reporting',
+		license: 'MIT',
+		keywords: ['reports'],
+		requirements: { php: '>=8.3', phpvms: '>=7.0.0' },
+	};
+
+	test('accepts a github-release source with a repository', () => {
+		expect(schemaValidate({ ...base, source: { type: 'github-release', repository: 'acme/reports-addon' } })).toEqual(
+			[],
+		);
+	});
+
+	test('rejects github-release without a repository', () => {
+		expect(schemaValidate({ ...base, source: { type: 'github-release' } }).some((i) => i.rule === 'schema')).toBe(true);
+	});
+
+	test('rejects an unknown source type at the schema layer', () => {
+		expect(
+			schemaValidate({ ...base, source: { type: 'gitlab-release', repository: 'acme/x' } }).some(
+				(i) => i.rule === 'schema',
+			),
+		).toBe(true);
 	});
 });

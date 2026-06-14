@@ -2,8 +2,11 @@ import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 
 export interface PackageSource {
-	type: 'github-release';
-	repository: string;
+	/** Discriminator selecting the source implementation (e.g. `github-release`). */
+	type: string;
+	/** GitHub `owner/repo` (github-release sources). */
+	repository?: string;
+	[key: string]: unknown;
 }
 
 export interface PackageRequirements {

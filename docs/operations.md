@@ -9,7 +9,24 @@ This document is for registry maintainers. Addon authors should read
 - `packages/{author}/meta.yml` — optional namespace metadata (not validated).
 - `schema/` — the JSON schema + the closed `category` enum.
 - `scripts/validate.ts` — the validator; helpers live in `scripts/lib/`.
+- `scripts/lib/sources/` — source implementations (how the release zip is
+  retrieved), keyed by `source.type`.
 - `.github/workflows/` — CI definitions.
+
+## Source types
+
+A package's `source.type` selects how the validator retrieves its release
+zip. The only type today is `github-release` (`scripts/lib/sources/github.ts`),
+which resolves the source repo's latest release zip.
+
+To add a new source type:
+
+1. Implement the `AddonSource` interface (`scripts/lib/sources/types.ts`)
+   in a new file under `scripts/lib/sources/`.
+2. Register it in `scripts/lib/sources/index.ts`.
+3. Add its `type` to the `source.type` enum in
+   `schema/package.schema.json`, plus an `allOf` `if/then` branch for any
+   type-specific required fields.
 
 There is no application server, no external storage, and no bot. Every
 check runs inside GitHub Actions via a single Bun script.

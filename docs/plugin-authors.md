@@ -85,7 +85,9 @@ requirements:
   phpvms: '>=7.0.0'
 ```
 
-That's the entire submission.
+That's the entire submission. `source.type` is currently `github-release`
+(the addon zip is pulled from your repo's latest GitHub release); it is
+the only supported source type today.
 
 ### Allowed `category` values
 

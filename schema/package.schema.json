@@ -36,17 +36,30 @@
 		"source": {
 			"type": "object",
 			"additionalProperties": false,
-			"required": ["type", "repository"],
+			"required": ["type"],
+			"description": "Where the addon's release zip comes from. The `type` selects the source implementation; type-specific fields are validated by the matching `allOf` branch below.",
 			"properties": {
 				"type": {
-					"const": "github-release"
+					"type": "string",
+					"enum": ["github-release"],
+					"description": "Source kind. Add new kinds here and register a matching source under scripts/lib/sources/."
 				},
 				"repository": {
 					"type": "string",
 					"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$",
-					"description": "GitHub repository in `owner/repo` format."
+					"description": "GitHub repository in `owner/repo` format (github-release sources)."
 				}
-			}
+			},
+			"allOf": [
+				{
+					"if": {
+						"properties": { "type": { "const": "github-release" } }
+					},
+					"then": {
+						"required": ["repository"]
+					}
+				}
+			]
 		},
 		"requirements": {
 			"type": "object",

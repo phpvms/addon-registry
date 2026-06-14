@@ -30,8 +30,8 @@ import path from 'node:path';
 
 import { readYaml, type PackageYaml } from './lib/yaml.js';
 import { buildPackageValidator } from './lib/schema.js';
-import { isRepoPublic, listReleases, parseRepository, pickZipAsset, type RepoIdentity } from './lib/github.js';
-import { fetchAndInspectZip, findForbiddenEntries, findRootEntry, readEntryByName } from './lib/zip.js';
+import { getSource, SUPPORTED_SOURCE_TYPES } from './lib/sources/index.js';
+import { findForbiddenEntries, findRootEntry, readEntryByName } from './lib/zip.js';
 import { checkModuleManifest } from './lib/module-manifest.js';
 import { lintMigration } from './lib/migration-lint.js';
 
@@ -166,50 +166,20 @@ export async function runPackageChecks(opts: { repoRoot: string; yamlRelPath: st
 
 	if (outcome.issues.length > 0) return outcome;
 
-	// 6. Source repository: must exist + be public
-	let repoIdent: RepoIdentity;
-	try {
-		repoIdent = parseRepository(data.source.repository);
-	} catch (err) {
-		outcome.issues.push({ rule: 'source-repo-format', message: (err as Error).message });
-		return outcome;
-	}
-	const isPublic = await isRepoPublic(repoIdent, token).catch((err) => {
+	// 6. Resolve the release zip via the source implementation for this
+	//    `source.type` (download + inspect happen inside the source).
+	const source = getSource(data.source.type);
+	if (!source) {
 		outcome.issues.push({
-			rule: 'source-repo-error',
-			message: `Failed to check repo ${data.source.repository}: ${(err as Error).message}`,
-		});
-		return false;
-	});
-	if (!isPublic) {
-		outcome.issues.push({
-			rule: 'source-repo-public',
-			message: `Repository ${data.source.repository} is not publicly visible (or does not exist)`,
+			rule: 'source-type',
+			message: `Unsupported source.type "${data.source.type}". Supported: ${SUPPORTED_SOURCE_TYPES.join(', ')}`,
 		});
 		return outcome;
 	}
-
-	// 7. Latest release with a zip asset
-	const releases = await listReleases(repoIdent, token);
-	const releaseWithZip = releases.find((r) => pickZipAsset(r) !== null);
-	if (!releaseWithZip) {
-		outcome.issues.push({
-			rule: 'release-required',
-			message: `Repository ${data.source.repository} has no published release with a zip asset`,
-		});
-		return outcome;
-	}
-	const asset = pickZipAsset(releaseWithZip)!;
-
-	// 8. Download + inspect zip
-	const inspection = await fetchAndInspectZip(asset.browser_download_url).catch((err) => {
-		outcome.issues.push({
-			rule: 'zip-download',
-			message: `Failed to download ${asset.browser_download_url}: ${(err as Error).message}`,
-		});
-		return null;
-	});
-	if (!inspection) return outcome;
+	const resolved = await source.resolve(data.source, { token });
+	outcome.issues.push(...resolved.issues);
+	if (!resolved.inspection) return outcome;
+	const inspection = resolved.inspection;
 
 	// 9. module.json at root
 	const moduleEntry = findRootEntry(inspection.entries, 'module.json');
