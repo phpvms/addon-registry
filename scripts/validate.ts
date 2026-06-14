@@ -86,6 +86,22 @@ export function schemaValidate(data: unknown): CheckIssue[] {
 	return result.errors.map((e) => ({ rule: 'schema', message: `${e.path}: ${e.message}` }));
 }
 
+/** Detect duplicate addon names within a single publisher file. */
+export function checkDuplicateAddonNames(addons: Array<{ name?: string | null }>): CheckIssue[] {
+	const seen = new Set<string>();
+	const issues: CheckIssue[] = [];
+	for (const addon of addons) {
+		const name = addon.name;
+		if (!name) continue;
+		if (seen.has(name)) {
+			issues.push({ rule: 'duplicate-addon-name', message: `Duplicate addon name "${name}" in publisher file` });
+		} else {
+			seen.add(name);
+		}
+	}
+	return issues;
+}
+
 // --- Per-publisher runner --------------------------------------------------
 
 /**
@@ -125,16 +141,19 @@ export async function runPublisherChecks(opts: { repoRoot: string; yamlRelPath: 
 	const publisher = path.basename(yamlRelPath).replace(/\.ya?ml$/i, '');
 	outcome.publisher = publisher;
 
-	// 5. Per-addon checks
+	// 5. Duplicate addon-name detection
+	outcome.fileIssues.push(...checkDuplicateAddonNames(data.addons));
+	if (outcome.fileIssues.length > 0) return outcome;
+
+	// 6. Per-addon checks
 	for (const addon of data.addons) {
+		const registryName = `${publisher}/${addon.name}`;
 		const addonOutcome: AddonCheckOutcome = {
 			name: addon.name ?? null,
-			registryName: addon.name ? `${publisher}/${addon.name}` : null,
+			registryName,
 			skipped: false,
 			issues: [],
 		};
-
-		const registryName = addonOutcome.registryName!;
 
 		// Skip upstream checks for revoked or archived addons
 		if (addon.revoked === true) {
@@ -224,7 +243,7 @@ export async function runPublisherChecks(opts: { repoRoot: string; yamlRelPath: 
 // --- File discovery --------------------------------------------------------
 
 /** Keep only publisher YAMLs (under packages/, .yml, exactly 2 path segments). */
-export function filterPackageYamlPaths(paths: string[]): string[] {
+export function filterPublisherYamlPaths(paths: string[]): string[] {
 	return paths
 		.map((l) => l.trim())
 		.filter((l) => l.length > 0)
@@ -238,7 +257,7 @@ function changedYamlFiles(repoRoot: string, baseSha: string, headSha: string): s
 		cwd: repoRoot,
 		encoding: 'utf8',
 	});
-	return filterPackageYamlPaths(out.split('\n'));
+	return filterPublisherYamlPaths(out.split('\n'));
 }
 
 /** Every publisher YAML under packages/ (used when no diff/args are given). */
@@ -256,7 +275,7 @@ function allPublisherYamls(repoRoot: string): string[] {
 function resolveTargets(repoRoot: string): string[] {
 	const args = process.argv.slice(2);
 	if (args.length > 0) {
-		return filterPackageYamlPaths(args.map((a) => path.relative(repoRoot, path.resolve(repoRoot, a))));
+		return filterPublisherYamlPaths(args.map((a) => path.relative(repoRoot, path.resolve(repoRoot, a))));
 	}
 	const baseSha = process.env.BASE_SHA;
 	const headSha = process.env.HEAD_SHA;
@@ -289,17 +308,10 @@ async function main(): Promise<void> {
 			continue;
 		}
 
-		if (outcome.addons.length === 0) {
-			console.log(`  passed (no addons)`);
-			continue;
-		}
-
-		let filePassed = true;
 		for (const addon of outcome.addons) {
 			const label = addon.registryName ?? addon.name ?? '(unknown)';
 			if (addon.issues.length > 0) {
 				failed = true;
-				filePassed = false;
 				console.log(`  ${label}: ${addon.issues.length} issue(s):`);
 				for (const issue of addon.issues) console.log(`    - [${issue.rule}] ${issue.message}`);
 			} else if (addon.skipped) {
@@ -307,10 +319,6 @@ async function main(): Promise<void> {
 			} else {
 				console.log(`  ${label}: passed`);
 			}
-		}
-
-		if (filePassed) {
-			// already printed per-addon
 		}
 	}
 

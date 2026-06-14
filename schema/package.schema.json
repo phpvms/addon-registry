@@ -19,6 +19,7 @@
 				"url": {
 					"type": "string",
 					"minLength": 1,
+					"format": "uri",
 					"description": "Publisher website URL."
 				},
 				"maintainers": {

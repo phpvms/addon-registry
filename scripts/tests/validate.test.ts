@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { checkPath, schemaValidate } from '../validate.ts';
+import { checkPath, schemaValidate, filterPublisherYamlPaths, checkDuplicateAddonNames } from '../validate.ts';
 import { checkModuleManifest } from '../lib/module-manifest.ts';
 import { getSource, SUPPORTED_SOURCE_TYPES } from '../lib/sources/index.ts';
 import { parseRepository } from '../lib/sources/github.ts';
@@ -160,5 +160,73 @@ describe('source.type schema', () => {
 	test('rejects an unknown source type at the schema layer', () => {
 		const data = { ...base, addons: [{ ...base.addons[0], source: { type: 'gitlab-release', repository: 'acme/x' } }] };
 		expect(schemaValidate(data).some((i) => i.rule === 'schema')).toBe(true);
+	});
+});
+
+describe('filterPublisherYamlPaths', () => {
+	test('keeps a valid top-level publisher YAML', () => {
+		expect(filterPublisherYamlPaths(['packages/phpvms.yml'])).toEqual(['packages/phpvms.yml']);
+	});
+
+	test('drops a nested path (3 segments)', () => {
+		expect(filterPublisherYamlPaths(['packages/acme/reports.yml'])).toEqual([]);
+	});
+
+	test('drops a path outside packages/', () => {
+		expect(filterPublisherYamlPaths(['schema/categories.yml'])).toEqual([]);
+	});
+
+	test('drops .yaml extension (wrong ext)', () => {
+		expect(filterPublisherYamlPaths(['packages/phpvms.yaml'])).toEqual([]);
+	});
+
+	test('handles mixed input correctly', () => {
+		const input = [
+			'packages/phpvms.yml',
+			'packages/acme/reports.yml',
+			'schema/categories.yml',
+			'packages/phpvms.yaml',
+			'packages/acme.yml',
+		];
+		expect(filterPublisherYamlPaths(input)).toEqual(['packages/phpvms.yml', 'packages/acme.yml']);
+	});
+});
+
+describe('checkDuplicateAddonNames', () => {
+	test('returns no issues for unique names', () => {
+		const addons = [{ name: 'reports' }, { name: 'finance' }];
+		expect(checkDuplicateAddonNames(addons)).toEqual([]);
+	});
+
+	test('emits duplicate-addon-name issue for repeated names', () => {
+		const addons = [{ name: 'reports' }, { name: 'finance' }, { name: 'reports' }];
+		const issues = checkDuplicateAddonNames(addons);
+		expect(issues.length).toBe(1);
+		expect(issues[0]!.rule).toBe('duplicate-addon-name');
+		expect(issues[0]!.message).toContain('reports');
+	});
+
+	test('emits one issue per duplicated name', () => {
+		const addons = [{ name: 'reports' }, { name: 'reports' }, { name: 'finance' }, { name: 'finance' }];
+		const issues = checkDuplicateAddonNames(addons);
+		expect(issues.length).toBe(2);
+		expect(issues.map((i) => i.rule)).toEqual(['duplicate-addon-name', 'duplicate-addon-name']);
+	});
+
+	test('skips addons with missing names', () => {
+		const addons = [{ name: 'reports' }, { name: null }, { name: undefined }];
+		expect(checkDuplicateAddonNames(addons)).toEqual([]);
+	});
+});
+
+describe('meta.url format validation', () => {
+	test('rejects non-URI meta.url', () => {
+		const data = { ...validPublisher, meta: { ...validPublisher.meta, url: 'not-a-url' } };
+		expect(schemaValidate(data).some((i) => i.rule === 'schema')).toBe(true);
+	});
+
+	test('accepts a valid https URL', () => {
+		const data = { ...validPublisher, meta: { ...validPublisher.meta, url: 'https://example.com' } };
+		expect(schemaValidate(data)).toEqual([]);
 	});
 });
