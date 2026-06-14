@@ -14,11 +14,12 @@ and [`revocation.md`](./revocation.md).
 ### What you submit
 
 A **single YAML file** at `packages/{author}/{name}.yml` describing your
-addon. You do **not** submit a `release:` block — the registry's bot
-queries your GitHub releases and adds it after merge.
+addon. The registry does not pin a version — your entry points at the
+GitHub repository, and CI validates that repo's latest release.
 
-If your namespace doesn't exist yet, also submit `packages/{author}/meta.yml`
-in the same PR.
+Optionally, add `packages/{author}/meta.yml` with namespace metadata
+(display name, maintainers). It is not required and is not validated by
+CI.
 
 ### Prerequisites
 
@@ -78,8 +79,7 @@ requirements:
   phpvms: '>=7.0.0'
 ```
 
-That's the entire submission. The bot resolves the `release:` block after
-merge.
+That's the entire submission.
 
 ### Allowed `category` values
 
@@ -92,10 +92,9 @@ Pick exactly one. The current list lives in `schema/categories.yml`:
 To request a new category, open a separate PR adding it to that file
 before submitting your package YAML.
 
-### meta.yml (first-time author)
+### meta.yml (optional namespace metadata)
 
-If your namespace is new (no other addons under `packages/{author}/`),
-include `packages/{author}/meta.yml` in the same PR:
+You may include `packages/{author}/meta.yml` with namespace metadata:
 
 ```yaml
 # packages/acme/meta.yml
@@ -106,8 +105,8 @@ maintainers:
   - jdoe
 ```
 
-`maintainers` is a list of GitHub usernames. The first listed is treated
-as the primary contact.
+`maintainers` is a list of GitHub usernames. This file is optional and
+is not validated by CI.
 
 ### What CI checks at PR time
 
@@ -123,25 +122,21 @@ as the primary contact.
 6. **module.json** — `registry_id` equals the registry name. No other field is checked.
 7. **Migration lint** — see [Part 2](#part-2-migration-rules).
 
-The validator posts a single comment summarising results. If everything
-passes, the comment includes the proposed `release:` block.
+CI is a plain pass/fail check. Read the workflow logs for the per-rule
+failure detail.
 
 ### What happens after merge
 
-1. The `release-block` workflow opens an auto-merging bot PR appending
-   the resolved `release:` block to your YAML.
-2. The `publish` workflow builds `raw/packages.json` and `raw/keywords.json`,
-   uploads them to R2, and refreshes the worker's edge cache.
-3. Hosts polling the read API see your addon within a few minutes.
-4. Subsequent releases on your repo are picked up by the discovery
-   sweep (cron every 6h, plus push triggers from the worker).
+Nothing automated. Once merged, your `packages/{author}/{name}.yml` is
+part of the catalogue. The registry does not track versions or republish
+anything — it is the curated list itself.
 
 ### Updating your addon
 
-Tag a new release on your GitHub repo. The discovery sweep opens an
-auto-merging `bot/bump-{author}-{name}-{version}` PR within hours.
-
-You do not interact with this repository for routine updates.
+Tag new releases on your GitHub repo as usual. Because the registry
+entry references the repository (not a pinned version), routine releases
+need no change here. Open a PR only to change metadata (description,
+keywords, category) or to mark the addon `revoked`/`archived`.
 
 ### Marking an addon revoked or archived
 

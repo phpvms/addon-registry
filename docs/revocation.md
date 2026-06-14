@@ -46,14 +46,11 @@ archived entries.
 
 ## What the registry does after revocation/archival
 
-1. Discovery does **not** poll the upstream repo for new releases.
-2. The publish workflow re-runs and includes the flag and reason in
-   `raw/packages.json` verbatim.
-3. The worker serves the updated index; the host installer interprets
-   the flag.
-
-Existing pinned `release:` blocks are preserved unless the maintainer
-also removes them.
+The flag and reason live in the YAML and are merged like any other
+change. The validator skips the upstream (source repo, release, zip,
+migration) checks for the flagged entry, so the PR passes even if the
+source repo or release is gone. How consumers interpret the flags is out
+of scope for this repository.
 
 ## Reverting a revocation
 
@@ -64,18 +61,14 @@ submission.
 
 ## Reverting an archival
 
-Same pattern: remove `archived: true` (and `archived_reason`). Discovery
-resumes polling on the next run.
+Same pattern: remove `archived: true` (and `archived_reason`). The
+validator runs all upstream checks again.
 
 ## Hard removal
 
 Sometimes you want the package gone, not just flagged. Open a PR that
-deletes the YAML file. The publish workflow rebuilds without that
-package; the worker drops it from the public list on the next refresh.
-
-Hosts cache aggressively — operators with the package already installed
-will still have a working install until they upgrade or until your host
-installer enforces removal at install time.
+deletes the YAML file. Once merged, it is no longer part of the
+catalogue.
 
 ## Decision flowchart
 

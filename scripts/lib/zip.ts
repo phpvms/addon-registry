@@ -1,11 +1,10 @@
 /**
- * Zip inspection — fetch a zip from a URL, hash it, list its entries,
- * read individual entries by name. Backed by `yauzl` for the actual
- * zip-format parsing (DEFLATE, ZIP64-aware, edge-case-tolerant). We
- * keep our own narrow API so callers don't depend on yauzl directly.
+ * Zip inspection — fetch a zip from a URL, list its entries, and read
+ * individual entries by name. Backed by `yauzl` for the actual zip-format
+ * parsing (DEFLATE, ZIP64-aware, edge-case-tolerant). We keep our own
+ * narrow API so callers don't depend on yauzl directly.
  */
 
-import { createHash } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { fromBuffer, type Entry, type ZipFile } from 'yauzl';
 
@@ -17,11 +16,10 @@ export interface ZipEntry {
 
 export interface ZipInspection {
 	bytes: Buffer;
-	sha256: string;
 	entries: ZipEntry[];
 }
 
-/** Fetch a zip, compute SHA-256, list entries. */
+/** Fetch a zip and list its entries. */
 export async function fetchAndInspectZip(url: string): Promise<ZipInspection> {
 	const res = await fetch(url, { redirect: 'follow' });
 	if (!res.ok) {
@@ -34,14 +32,8 @@ export async function fetchAndInspectZip(url: string): Promise<ZipInspection> {
 
 /** Inspect an in-memory zip buffer. Used in tests too. */
 export async function inspectBuffer(bytes: Buffer): Promise<ZipInspection> {
-	const sha256Hex = createHash('sha256').update(bytes).digest('hex');
 	const entries = await listEntries(bytes);
-	return { bytes, sha256: sha256Hex, entries };
-}
-
-/** SHA-256 of a buffer as a 64-char lowercase hex string. */
-export function sha256(bytes: Buffer): string {
-	return createHash('sha256').update(bytes).digest('hex');
+	return { bytes, entries };
 }
 
 /**

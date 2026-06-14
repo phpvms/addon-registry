@@ -88,24 +88,6 @@ export function buildPackageValidator(): PackageValidator {
 	};
 }
 
-export interface SimpleValidator {
-	validate: (data: unknown) => ValidationResult;
-}
-
-/** Validator for `packages/{a}/meta.yml`. */
-export function buildMetaValidator(): SimpleValidator {
-	const ajv = buildAjv();
-	const schema = readSchema(path.join(SCHEMA_DIR, 'meta.schema.json'));
-	const validate = ajv.compile(schema) as ValidateFunction<unknown>;
-	return {
-		validate(data: unknown): ValidationResult {
-			const ok = validate(data);
-			const errors = formatErrors(validate.errors);
-			return { valid: ok, errors };
-		},
-	};
-}
-
 export function formatErrorList(errors: SchemaError[]): string {
 	return errors.map((e) => `  - ${e.path}: ${e.message}`).join('\n');
 }

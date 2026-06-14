@@ -1,31 +1,49 @@
 # phpVMS addon registry
 
 The curated catalogue of phpVMS Laravel-module addons. Authors submit a
-minimal YAML referencing their GitHub release; CI validates, hashes the
-zip, lints migrations, and publishes a JSON index to Cloudflare R2 that
-the host installer and public read API consume.
+minimal YAML referencing their GitHub repository; CI validates the YAML
+against a JSON schema and inspects the repo's latest release.
 
-This repo runs on GitHub Actions plus an R2 bucket — no application
-servers. The public read API lives in `addon-registry-api`; the host
-installer lives in `phpvms/phpvms`.
+This repo runs on GitHub Actions only — no application servers, no
+external infrastructure. A single Bun script performs every check.
 
 ## Layout
 
 - `packages/{author}/{name}.yml` — addon entries
-- `packages/{author}/meta.yml` — namespace metadata (display, maintainers)
-- `schema/` — JSON schemas + the closed `category` enum
-- `scripts/` — TypeScript validator, release automation, index builder
+- `packages/{author}/meta.yml` — optional namespace metadata (display, maintainers)
+- `schema/` — the JSON schema + the closed `category` enum
+- `scripts/validate.ts` — the validator (plus small helpers in `scripts/lib/`)
 - `.github/workflows/` — CI definitions
-- `docs/` — contributor and operator guides
+
+## What CI does
+
+On every PR touching `packages/**`, `scripts/validate.ts` validates each
+changed package YAML:
+
+1. **Structural** — path shape, filename matches `name`, reserved names
+2. **JSON schema** — `schema/package.schema.json` + the `category` enum
+3. **Source release** — repo is public and has a release with a zip asset
+4. **Zip inspection** — `module.json` at the root, no forbidden paths,
+   `registry_id` matches the registry `name`
+5. **Migration lint** — static allow-list checks on `Database/Migrations/`
+
+`revoked`/`archived` entries skip checks 3–5. The job exits non-zero on
+any failure (a plain pass/fail check, no PR comment).
+
+## Local use
+
+```bash
+bun install
+bun scripts/validate.ts packages/acme/reports.yml   # validate one file
+bun scripts/validate.ts                             # validate every package
+bun test                                            # unit tests
+bun run typecheck                                   # tsc --noEmit
+```
+
+`GITHUB_TOKEN` is optional locally; set it to raise GitHub API rate
+limits when validating many packages.
 
 ## Contributing
 
-See `docs/plugin-authors.md` for how to submit an addon (covers
-both registry submission and migration rules).
-
-## Spec
-
-This repository was bootstrapped from the OpenSpec change
-`openspec/changes/bootstrap-addon-registry/`. The capability specs in
-that change describe the `registry-format`, `submission-pipeline`,
-`release-automation`, and `index-publishing` rules in detail.
+See `docs/plugin-authors.md` for how to submit an addon (covers both
+registry submission and migration rules).
