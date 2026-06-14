@@ -56,9 +56,6 @@ export interface PublisherValidator {
 	categories: string[];
 }
 
-/** @deprecated Use PublisherValidator instead. */
-export type PackageValidator = PublisherValidator;
-
 /**
  * Build a validator for a publisher file (`packages/{publisher}.yml`).
  * Combines the JSON schema with a runtime check that each addon's `category`
@@ -97,9 +94,6 @@ export function buildPublisherValidator(): PublisherValidator {
 		},
 	};
 }
-
-/** @deprecated Use buildPublisherValidator instead. */
-export const buildPackageValidator = buildPublisherValidator;
 
 export function formatErrorList(errors: SchemaError[]): string {
 	return errors.map((e) => `  - ${e.path}: ${e.message}`).join('\n');

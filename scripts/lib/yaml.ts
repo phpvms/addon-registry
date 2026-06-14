@@ -41,9 +41,6 @@ export interface PublisherYaml {
 	addons: AddonYaml[];
 }
 
-/** @deprecated Use AddonYaml instead. */
-export type PackageYaml = AddonYaml;
-
 /** Parse YAML string into a plain JS value. Throws on syntax errors. */
 export function parseYaml<T = unknown>(content: string): T {
 	return parse(content) as T;
