@@ -1,123 +1,163 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"$id": "https://registry.phpvms.net/schema/package.schema.json",
-	"title": "phpVMS addon registry package",
+	"title": "phpVMS addon registry publisher file",
 	"type": "object",
 	"additionalProperties": false,
-	"required": ["name", "description", "category", "license", "keywords", "source", "requirements"],
+	"required": ["meta", "addons"],
 	"properties": {
-		"name": {
-			"type": "string",
-			"description": "Namespaced identifier `{author}/{package}`. Lowercase, digits, hyphens; segments at least two characters.",
-			"pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]/[a-z0-9][a-z0-9-]*[a-z0-9]$"
-		},
-		"description": {
-			"type": "string",
-			"minLength": 1,
-			"maxLength": 500
-		},
-		"category": {
-			"type": "string",
-			"description": "Single category drawn from schema/categories.yml. Validated dynamically at runtime against that file."
-		},
-		"license": {
-			"type": "string",
-			"minLength": 1,
-			"description": "SPDX license identifier (validated by string presence here; deeper validation is out of scope for v1)."
-		},
-		"keywords": {
-			"type": "array",
-			"items": {
-				"type": "string",
-				"minLength": 1
-			},
-			"description": "Free-form tags. Order is preserved into the published index."
-		},
-		"source": {
+		"meta": {
 			"type": "object",
 			"additionalProperties": false,
-			"required": ["type"],
-			"description": "Where the addon's release zip comes from. The `type` selects the source implementation; type-specific fields are validated by the matching `allOf` branch below.",
+			"required": ["name", "url", "maintainers"],
 			"properties": {
-				"type": {
+				"name": {
 					"type": "string",
-					"enum": ["github-release"],
-					"description": "Source kind. Add new kinds here and register a matching source under scripts/lib/sources/."
+					"minLength": 1,
+					"description": "Display name of the publisher."
 				},
-				"repository": {
+				"url": {
 					"type": "string",
-					"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$",
-					"description": "GitHub repository in `owner/repo` format (github-release sources)."
+					"minLength": 1,
+					"description": "Publisher website URL."
+				},
+				"maintainers": {
+					"type": "array",
+					"minItems": 1,
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"description": "List of maintainer identifiers (e.g. GitHub usernames)."
+				}
+			}
+		},
+		"addons": {
+			"type": "array",
+			"minItems": 1,
+			"items": { "$ref": "#/$defs/addon" }
+		}
+	},
+	"$defs": {
+		"addon": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["name", "description", "category", "license", "keywords", "source", "requirements"],
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Unqualified addon identifier (single segment). Lowercase letters, digits, and hyphens; at least two characters; must start and end with a letter or digit.",
+					"pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$"
+				},
+				"description": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 500
+				},
+				"category": {
+					"type": "string",
+					"description": "Single category drawn from schema/categories.yml. Validated dynamically at runtime against that file."
+				},
+				"license": {
+					"type": "string",
+					"minLength": 1,
+					"description": "SPDX license identifier (validated by string presence here; deeper validation is out of scope for v1)."
+				},
+				"keywords": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"description": "Free-form tags. Order is preserved into the published index."
+				},
+				"source": {
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["type"],
+					"description": "Where the addon's release zip comes from. The `type` selects the source implementation; type-specific fields are validated by the matching `allOf` branch below.",
+					"properties": {
+						"type": {
+							"type": "string",
+							"enum": ["github-release"],
+							"description": "Source kind. Add new kinds here and register a matching source under scripts/lib/sources/."
+						},
+						"repository": {
+							"type": "string",
+							"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$",
+							"description": "GitHub repository in `owner/repo` format (github-release sources)."
+						}
+					},
+					"allOf": [
+						{
+							"if": {
+								"properties": { "type": { "const": "github-release" } }
+							},
+							"then": {
+								"required": ["repository"]
+							}
+						}
+					]
+				},
+				"requirements": {
+					"type": "object",
+					"required": ["php", "phpvms"],
+					"properties": {
+						"php": {
+							"type": "string",
+							"minLength": 1
+						},
+						"phpvms": {
+							"type": "string",
+							"minLength": 1
+						},
+						"extensions": {
+							"description": "Deferred to v2; ignored by the v1 validator.",
+							"type": "array",
+							"items": { "type": "string" }
+						}
+					},
+					"additionalProperties": true
+				},
+				"revoked": {
+					"type": "boolean"
+				},
+				"revoked_reason": {
+					"type": "string",
+					"minLength": 1
+				},
+				"archived": {
+					"type": "boolean"
+				},
+				"archived_reason": {
+					"type": "string",
+					"minLength": 1
 				}
 			},
 			"allOf": [
 				{
 					"if": {
-						"properties": { "type": { "const": "github-release" } }
+						"required": ["revoked_reason"]
 					},
 					"then": {
-						"required": ["repository"]
+						"properties": {
+							"revoked": { "const": true }
+						},
+						"required": ["revoked"]
+					}
+				},
+				{
+					"if": {
+						"required": ["archived_reason"]
+					},
+					"then": {
+						"properties": {
+							"archived": { "const": true }
+						},
+						"required": ["archived"]
 					}
 				}
 			]
-		},
-		"requirements": {
-			"type": "object",
-			"required": ["php", "phpvms"],
-			"properties": {
-				"php": {
-					"type": "string",
-					"minLength": 1
-				},
-				"phpvms": {
-					"type": "string",
-					"minLength": 1
-				},
-				"extensions": {
-					"description": "Deferred to v2; ignored by the v1 validator.",
-					"type": "array",
-					"items": { "type": "string" }
-				}
-			},
-			"additionalProperties": true
-		},
-		"revoked": {
-			"type": "boolean"
-		},
-		"revoked_reason": {
-			"type": "string",
-			"minLength": 1
-		},
-		"archived": {
-			"type": "boolean"
-		},
-		"archived_reason": {
-			"type": "string",
-			"minLength": 1
 		}
-	},
-	"allOf": [
-		{
-			"if": {
-				"required": ["revoked_reason"]
-			},
-			"then": {
-				"properties": {
-					"revoked": { "const": true }
-				},
-				"required": ["revoked"]
-			}
-		},
-		{
-			"if": {
-				"required": ["archived_reason"]
-			},
-			"then": {
-				"properties": {
-					"archived": { "const": true }
-				},
-				"required": ["archived"]
-			}
-		}
-	]
+	}
 }

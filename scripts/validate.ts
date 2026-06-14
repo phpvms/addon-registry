@@ -2,19 +2,20 @@
 /**
  * scripts/validate.ts — PR-time addon validator (single Bun entry point).
  *
- * For each changed `packages/{author}/{name}.yml` it runs, in order:
- *   1. structural checks  — path shape, filename matches `name`, reserved name
- *   2. JSON schema        — schema/package.schema.json + categories.yml enum
- *   3. source release     — repo is public + has a release with a zip asset
- *   4. zip inspection     — module.json at root, forbidden paths, identity
- *   5. migration lint     — PHP AST allow-list
+ * For each changed `packages/{publisher}.yml` it runs, in order:
+ *   1. structural checks  — path shape (packages/{publisher}.yml)
+ *   2. JSON schema        — schema/package.schema.json (publisher file: meta + addons)
+ *   3. per-addon checks (skipped for revoked/archived addons):
+ *      a. source release  — repo is public + has a release with a zip asset
+ *      b. zip inspection  — module.json at root, forbidden paths, identity
+ *      c. migration lint  — PHP AST allow-list
  *
- * `revoked`/`archived` entries skip the upstream network checks (3-5).
+ * `revoked`/`archived` addons skip the upstream network checks.
  *
  * Usage:
  *   bun scripts/validate.ts [file ...]               validate the given YAMLs
  *   BASE_SHA=.. HEAD_SHA=.. bun scripts/validate.ts  validate the PR diff
- *   bun scripts/validate.ts                          validate every package
+ *   bun scripts/validate.ts                          validate every publisher file
  *
  * Env:
  *   GITHUB_TOKEN        optional; raises GitHub API rate limits.
@@ -28,8 +29,8 @@ import { execFileSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
-import { readYaml, type PackageYaml } from './lib/yaml.js';
-import { buildPackageValidator } from './lib/schema.js';
+import { readYaml, type PublisherYaml } from './lib/yaml.js';
+import { buildPublisherValidator } from './lib/schema.js';
 import { getSource, SUPPORTED_SOURCE_TYPES } from './lib/sources/index.js';
 import { findForbiddenEntries, findRootEntry, readEntryByName } from './lib/zip.js';
 import { checkModuleManifest } from './lib/module-manifest.js';
@@ -40,19 +41,24 @@ export interface CheckIssue {
 	message: string;
 }
 
-export interface PackageCheckOutcome {
-	yamlPath: string;
+export interface AddonCheckOutcome {
+	name: string | null;
 	registryName: string | null;
 	skipped: boolean;
 	skipReason?: string;
 	issues: CheckIssue[];
 }
 
-const RESERVED_PACKAGE_NAMES = new Set(['meta']);
+export interface PublisherCheckOutcome {
+	yamlPath: string;
+	publisher: string | null;
+	fileIssues: CheckIssue[];
+	addons: AddonCheckOutcome[];
+}
 
 // --- Structural checks -----------------------------------------------------
 
-/** Verify the YAML lives at `packages/{author}/{name}.yml`. */
+/** Verify the YAML lives at `packages/{publisher}.yml` (exactly 2 path segments). */
 export function checkPath(yamlRelPath: string): CheckIssue[] {
 	const issues: CheckIssue[] = [];
 	const parts = yamlRelPath.split('/');
@@ -60,171 +66,156 @@ export function checkPath(yamlRelPath: string): CheckIssue[] {
 		issues.push({ rule: 'path-prefix', message: `Expected file under packages/, got ${yamlRelPath}` });
 		return issues;
 	}
-	if (parts.length !== 3) {
-		issues.push({ rule: 'path-shape', message: `Expected packages/{author}/{name}.yml, got ${yamlRelPath}` });
+	if (parts.length !== 2) {
+		issues.push({ rule: 'path-shape', message: `Expected packages/{publisher}.yml, got ${yamlRelPath}` });
 		return issues;
 	}
-	if (!parts[2]!.endsWith('.yml')) {
+	if (!parts[1]!.endsWith('.yml')) {
 		issues.push({
 			rule: 'path-extension',
-			message: `Package files must use .yml (not .yaml or other): ${yamlRelPath}`,
+			message: `Publisher files must use .yml (not .yaml or other): ${yamlRelPath}`,
 		});
 	}
 	return issues;
 }
 
-/** Verify the filename matches `name`. Assumes `checkPath` already passed. */
-export function checkFilenameMatchesName(yamlRelPath: string, name: string): CheckIssue[] {
-	const parts = yamlRelPath.split('/');
-	if (parts.length !== 3) return [];
-	const author = parts[1]!;
-	const stem = parts[2]!.replace(/\.ya?ml$/i, '');
-	const expected = `${author}/${stem}`;
-	if (expected !== name) {
-		return [
-			{
-				rule: 'name-path-mismatch',
-				message: `\`name\` "${name}" must match path "${expected}" derived from ${yamlRelPath}`,
-			},
-		];
-	}
-	return [];
-}
-
-/** Reject `meta` as a package name (meta.yml is namespace metadata). */
-export function checkReservedName(name: string): CheckIssue[] {
-	const second = name.split('/')[1];
-	if (second && RESERVED_PACKAGE_NAMES.has(second)) {
-		return [
-			{
-				rule: 'reserved-name',
-				message: `Package name "${name}" uses the reserved word "${second}"; meta.yml is namespace metadata, not a package`,
-			},
-		];
-	}
-	return [];
-}
-
 /** Run AJV schema validation (+ category enum) and surface issues. */
 export function schemaValidate(data: unknown): CheckIssue[] {
-	const validator = buildPackageValidator();
+	const validator = buildPublisherValidator();
 	const result = validator.validate(data);
 	return result.errors.map((e) => ({ rule: 'schema', message: `${e.path}: ${e.message}` }));
 }
 
-// --- Per-package runner ----------------------------------------------------
+// --- Per-publisher runner --------------------------------------------------
 
 /**
- * Run all PR-time checks for a single package YAML. Network checks
+ * Run all PR-time checks for a single publisher YAML. Network checks
  * (source repo, release, zip, migrations) are skipped for revoked or
- * archived entries.
+ * archived addons.
  */
-export async function runPackageChecks(opts: { repoRoot: string; yamlRelPath: string; token?: string }): Promise<PackageCheckOutcome> {
+export async function runPublisherChecks(opts: { repoRoot: string; yamlRelPath: string; token?: string }): Promise<PublisherCheckOutcome> {
 	const { repoRoot, yamlRelPath, token } = opts;
 	const yamlAbsPath = path.join(repoRoot, yamlRelPath);
-	const outcome: PackageCheckOutcome = {
+	const outcome: PublisherCheckOutcome = {
 		yamlPath: yamlRelPath,
-		registryName: null,
-		skipped: false,
-		issues: [],
+		publisher: null,
+		fileIssues: [],
+		addons: [],
 	};
 
 	// 1. Path shape
-	outcome.issues.push(...checkPath(yamlRelPath));
-	if (outcome.issues.length > 0) return outcome;
+	outcome.fileIssues.push(...checkPath(yamlRelPath));
+	if (outcome.fileIssues.length > 0) return outcome;
 
 	// 2. Parse YAML
-	let data: PackageYaml;
+	let data: PublisherYaml;
 	try {
-		data = readYaml<PackageYaml>(yamlAbsPath);
+		data = readYaml<PublisherYaml>(yamlAbsPath);
 	} catch (err) {
-		outcome.issues.push({ rule: 'yaml-parse', message: `Failed to parse YAML: ${(err as Error).message}` });
+		outcome.fileIssues.push({ rule: 'yaml-parse', message: `Failed to parse YAML: ${(err as Error).message}` });
 		return outcome;
 	}
 
-	// 3. Schema validation
+	// 3. Schema validation (whole publisher object)
 	const schemaIssues = schemaValidate(data);
-	outcome.issues.push(...schemaIssues);
-	if (schemaIssues.length > 0 || !data.name) return outcome;
-	outcome.registryName = data.name;
+	outcome.fileIssues.push(...schemaIssues);
+	if (schemaIssues.length > 0 || !Array.isArray(data?.addons)) return outcome;
 
-	// 4. Filename matches name + reserved name
-	outcome.issues.push(...checkFilenameMatchesName(yamlRelPath, data.name));
-	outcome.issues.push(...checkReservedName(data.name));
+	// 4. Derive publisher from file stem
+	const publisher = path.basename(yamlRelPath).replace(/\.ya?ml$/i, '');
+	outcome.publisher = publisher;
 
-	// 5. Skip upstream checks for revoked or archived entries
-	if (data.revoked === true) {
-		outcome.skipped = true;
-		outcome.skipReason = 'revoked';
-		return outcome;
-	}
-	if (data.archived === true) {
-		outcome.skipped = true;
-		outcome.skipReason = 'archived';
-		return outcome;
-	}
+	// 5. Per-addon checks
+	for (const addon of data.addons) {
+		const addonOutcome: AddonCheckOutcome = {
+			name: addon.name ?? null,
+			registryName: addon.name ? `${publisher}/${addon.name}` : null,
+			skipped: false,
+			issues: [],
+		};
 
-	if (outcome.issues.length > 0) return outcome;
+		const registryName = addonOutcome.registryName!;
 
-	// 6. Resolve the release zip via the source implementation for this
-	//    `source.type` (download + inspect happen inside the source).
-	const source = getSource(data.source.type);
-	if (!source) {
-		outcome.issues.push({
-			rule: 'source-type',
-			message: `Unsupported source.type "${data.source.type}". Supported: ${SUPPORTED_SOURCE_TYPES.join(', ')}`,
-		});
-		return outcome;
-	}
-	const resolved = await source.resolve(data.source, { token });
-	outcome.issues.push(...resolved.issues);
-	if (!resolved.inspection) return outcome;
-	const inspection = resolved.inspection;
-
-	// 9. module.json at root
-	const moduleEntry = findRootEntry(inspection.entries, 'module.json');
-	if (!moduleEntry) {
-		outcome.issues.push({ rule: 'module-json-missing', message: `Zip must contain module.json at the root` });
-		return outcome;
-	}
-
-	// 10. Forbidden paths
-	const forbidden = findForbiddenEntries(inspection.entries);
-	if (forbidden.length > 0) {
-		outcome.issues.push({
-			rule: 'forbidden-paths',
-			message: `Zip contains forbidden paths: ${forbidden.slice(0, 10).join(', ')}${forbidden.length > 10 ? `, ...${forbidden.length - 10} more` : ''}`,
-		});
-	}
-
-	// 11. module.json manifest (identity + required fields + table namespace)
-	let moduleParsed: unknown;
-	try {
-		const bytes = await readEntryByName(inspection.bytes, moduleEntry.name);
-		moduleParsed = JSON.parse(bytes.toString('utf8'));
-	} catch (err) {
-		outcome.issues.push({ rule: 'module-json-parse', message: `Failed to parse module.json: ${(err as Error).message}` });
-		return outcome;
-	}
-	const manifest = checkModuleManifest(moduleParsed, data.name);
-	outcome.issues.push(...manifest.errors);
-
-	// 12. Migration lint
-	const author = data.name.split('/')[0]!;
-	const migrationEntries = inspection.entries.filter((e) => e.name.startsWith('Database/Migrations/') && e.name.endsWith('.php'));
-	for (const entry of migrationEntries) {
-		const phpBytes = await readEntryByName(inspection.bytes, entry.name).catch(() => null);
-		if (!phpBytes) {
-			outcome.issues.push({ rule: 'migration-read', message: `Failed to read migration ${entry.name} from zip` });
+		// Skip upstream checks for revoked or archived addons
+		if (addon.revoked === true) {
+			addonOutcome.skipped = true;
+			addonOutcome.skipReason = 'revoked';
+			outcome.addons.push(addonOutcome);
 			continue;
 		}
-		const lint = lintMigration({ source: phpBytes.toString('utf8'), path: entry.name, author });
-		for (const err of lint.errors) {
-			outcome.issues.push({
-				rule: `migration:${err.rule}`,
-				message: `${entry.name}${err.line ? `:${err.line}` : ''} — ${err.message}`,
+		if (addon.archived === true) {
+			addonOutcome.skipped = true;
+			addonOutcome.skipReason = 'archived';
+			outcome.addons.push(addonOutcome);
+			continue;
+		}
+
+		// Resolve release zip via the source implementation
+		const source = getSource(addon.source.type);
+		if (!source) {
+			addonOutcome.issues.push({
+				rule: 'source-type',
+				message: `Unsupported source.type "${addon.source.type}". Supported: ${SUPPORTED_SOURCE_TYPES.join(', ')}`,
+			});
+			outcome.addons.push(addonOutcome);
+			continue;
+		}
+		const resolved = await source.resolve(addon.source, { token });
+		addonOutcome.issues.push(...resolved.issues);
+		if (!resolved.inspection) {
+			outcome.addons.push(addonOutcome);
+			continue;
+		}
+		const inspection = resolved.inspection;
+
+		// module.json at root
+		const moduleEntry = findRootEntry(inspection.entries, 'module.json');
+		if (!moduleEntry) {
+			addonOutcome.issues.push({ rule: 'module-json-missing', message: `Zip must contain module.json at the root` });
+			outcome.addons.push(addonOutcome);
+			continue;
+		}
+
+		// Forbidden paths
+		const forbidden = findForbiddenEntries(inspection.entries);
+		if (forbidden.length > 0) {
+			addonOutcome.issues.push({
+				rule: 'forbidden-paths',
+				message: `Zip contains forbidden paths: ${forbidden.slice(0, 10).join(', ')}${forbidden.length > 10 ? `, ...${forbidden.length - 10} more` : ''}`,
 			});
 		}
+
+		// module.json manifest (identity + required fields + table namespace)
+		let moduleParsed: unknown;
+		try {
+			const bytes = await readEntryByName(inspection.bytes, moduleEntry.name);
+			moduleParsed = JSON.parse(bytes.toString('utf8'));
+		} catch (err) {
+			addonOutcome.issues.push({ rule: 'module-json-parse', message: `Failed to parse module.json: ${(err as Error).message}` });
+			outcome.addons.push(addonOutcome);
+			continue;
+		}
+		const manifest = checkModuleManifest(moduleParsed, registryName);
+		addonOutcome.issues.push(...manifest.errors);
+
+		// Migration lint
+		const migrationEntries = inspection.entries.filter((e) => e.name.startsWith('Database/Migrations/') && e.name.endsWith('.php'));
+		for (const entry of migrationEntries) {
+			const phpBytes = await readEntryByName(inspection.bytes, entry.name).catch(() => null);
+			if (!phpBytes) {
+				addonOutcome.issues.push({ rule: 'migration-read', message: `Failed to read migration ${entry.name} from zip` });
+				continue;
+			}
+			const lint = lintMigration({ source: phpBytes.toString('utf8'), path: entry.name, author: publisher });
+			for (const err of lint.errors) {
+				addonOutcome.issues.push({
+					rule: `migration:${err.rule}`,
+					message: `${entry.name}${err.line ? `:${err.line}` : ''} — ${err.message}`,
+				});
+			}
+		}
+
+		outcome.addons.push(addonOutcome);
 	}
 
 	return outcome;
@@ -232,20 +223,17 @@ export async function runPackageChecks(opts: { repoRoot: string; yamlRelPath: st
 
 // --- File discovery --------------------------------------------------------
 
-/** Keep only package YAMLs (under packages/, .yml, excluding meta.yml). */
+/** Keep only publisher YAMLs (under packages/, .yml, exactly 2 path segments). */
 export function filterPackageYamlPaths(paths: string[]): string[] {
 	return paths
 		.map((l) => l.trim())
 		.filter((l) => l.length > 0)
 		.filter((l) => l.startsWith('packages/') && l.endsWith('.yml'))
-		.filter((l) => path.basename(l) !== 'meta.yml');
+		.filter((l) => l.split('/').length === 2);
 }
 
-/** Package YAMLs changed in the PR diff (excludes deleted paths). */
+/** Publisher YAMLs changed in the PR diff (excludes deleted paths). */
 function changedYamlFiles(repoRoot: string, baseSha: string, headSha: string): string[] {
-	// `git diff` pathspecs do not support `**`; filter in JS instead.
-	// `--diff-filter=ACMRT` excludes deleted paths so we never read a YAML
-	// the PR removed.
 	const out = execFileSync('git', ['diff', '--name-only', '--diff-filter=ACMRT', `${baseSha}...${headSha}`], {
 		cwd: repoRoot,
 		encoding: 'utf8',
@@ -253,27 +241,16 @@ function changedYamlFiles(repoRoot: string, baseSha: string, headSha: string): s
 	return filterPackageYamlPaths(out.split('\n'));
 }
 
-/** Every package YAML under packages/ (used when no diff/args are given). */
-function allPackageYamls(repoRoot: string): string[] {
+/** Every publisher YAML under packages/ (used when no diff/args are given). */
+function allPublisherYamls(repoRoot: string): string[] {
 	const root = path.join(repoRoot, 'packages');
-	const found: string[] = [];
-	let authors: string[];
 	try {
-		authors = readdirSync(root, { withFileTypes: true })
-			.filter((d) => d.isDirectory())
-			.map((d) => d.name);
+		return readdirSync(root, { withFileTypes: true })
+			.filter((d) => d.isFile() && d.name.endsWith('.yml'))
+			.map((d) => `packages/${d.name}`);
 	} catch {
 		return [];
 	}
-	for (const author of authors) {
-		const dir = path.join(root, author);
-		for (const entry of readdirSync(dir)) {
-			if (entry.endsWith('.yml') && entry !== 'meta.yml') {
-				found.push(`packages/${author}/${entry}`);
-			}
-		}
-	}
-	return found;
 }
 
 function resolveTargets(repoRoot: string): string[] {
@@ -284,7 +261,7 @@ function resolveTargets(repoRoot: string): string[] {
 	const baseSha = process.env.BASE_SHA;
 	const headSha = process.env.HEAD_SHA;
 	if (baseSha && headSha) return changedYamlFiles(repoRoot, baseSha, headSha);
-	return allPackageYamls(repoRoot);
+	return allPublisherYamls(repoRoot);
 }
 
 async function main(): Promise<void> {
@@ -293,25 +270,47 @@ async function main(): Promise<void> {
 
 	const targets = resolveTargets(repoRoot);
 	if (targets.length === 0) {
-		console.log('No package YAML changes detected; nothing to validate.');
+		console.log('No publisher YAML changes detected; nothing to validate.');
 		return;
 	}
 
-	console.log(`Validating ${targets.length} package YAML file(s):`);
+	console.log(`Validating ${targets.length} publisher YAML file(s):`);
 	for (const f of targets) console.log(`  - ${f}`);
 
 	let failed = false;
 	for (const yamlRelPath of targets) {
 		console.log(`\n--- ${yamlRelPath}`);
-		const outcome = await runPackageChecks({ repoRoot, yamlRelPath, token });
-		if (outcome.issues.length > 0) {
+		const outcome = await runPublisherChecks({ repoRoot, yamlRelPath, token });
+
+		if (outcome.fileIssues.length > 0) {
 			failed = true;
-			console.log(`  ${outcome.issues.length} issue(s):`);
-			for (const issue of outcome.issues) console.log(`    - [${issue.rule}] ${issue.message}`);
-		} else if (outcome.skipped) {
-			console.log(`  passed (${outcome.skipReason}; upstream checks skipped)`);
-		} else {
-			console.log(`  passed`);
+			console.log(`  ${outcome.fileIssues.length} file-level issue(s):`);
+			for (const issue of outcome.fileIssues) console.log(`    - [${issue.rule}] ${issue.message}`);
+			continue;
+		}
+
+		if (outcome.addons.length === 0) {
+			console.log(`  passed (no addons)`);
+			continue;
+		}
+
+		let filePassed = true;
+		for (const addon of outcome.addons) {
+			const label = addon.registryName ?? addon.name ?? '(unknown)';
+			if (addon.issues.length > 0) {
+				failed = true;
+				filePassed = false;
+				console.log(`  ${label}: ${addon.issues.length} issue(s):`);
+				for (const issue of addon.issues) console.log(`    - [${issue.rule}] ${issue.message}`);
+			} else if (addon.skipped) {
+				console.log(`  ${label}: passed (${addon.skipReason}; upstream checks skipped)`);
+			} else {
+				console.log(`  ${label}: passed`);
+			}
+		}
+
+		if (filePassed) {
+			// already printed per-addon
 		}
 	}
 

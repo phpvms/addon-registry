@@ -51,16 +51,20 @@ function formatErrors(errors: ErrorObject[] | null | undefined): SchemaError[] {
 	}));
 }
 
-export interface PackageValidator {
+export interface PublisherValidator {
 	validate: (data: unknown) => ValidationResult;
 	categories: string[];
 }
 
+/** @deprecated Use PublisherValidator instead. */
+export type PackageValidator = PublisherValidator;
+
 /**
- * Build a validator for `packages/{a}/{b}.yml`. Combines the JSON schema
- * with a runtime check that `category` is in `schema/categories.yml`.
+ * Build a validator for a publisher file (`packages/{publisher}.yml`).
+ * Combines the JSON schema with a runtime check that each addon's `category`
+ * is in `schema/categories.yml`.
  */
-export function buildPackageValidator(): PackageValidator {
+export function buildPublisherValidator(): PublisherValidator {
 	const ajv = buildAjv();
 	const schema = readSchema(path.join(SCHEMA_DIR, 'package.schema.json'));
 	const validate = ajv.compile(schema) as ValidateFunction<unknown>;
@@ -72,21 +76,30 @@ export function buildPackageValidator(): PackageValidator {
 		validate(data: unknown): ValidationResult {
 			const ok = validate(data);
 			const errors = formatErrors(validate.errors);
-			if (ok && data && typeof data === 'object' && 'category' in data) {
-				const cat = (data as { category?: unknown }).category;
-				if (typeof cat === 'string' && !categorySet.has(cat)) {
-					errors.push({
-						path: '/category',
-						message: `category "${cat}" is not in schema/categories.yml. Allowed: ${categories.join(', ')}`,
-						keyword: 'enum',
-						params: { allowedValues: categories },
-					});
+			if (ok && data && typeof data === 'object' && 'addons' in data) {
+				const addons = (data as { addons?: unknown }).addons;
+				if (Array.isArray(addons)) {
+					for (let i = 0; i < addons.length; i++) {
+						const addon = addons[i] as { category?: unknown };
+						const cat = addon?.category;
+						if (typeof cat === 'string' && !categorySet.has(cat)) {
+							errors.push({
+								path: `/addons/${i}/category`,
+								message: `category "${cat}" is not in schema/categories.yml. Allowed: ${categories.join(', ')}`,
+								keyword: 'enum',
+								params: { allowedValues: categories },
+							});
+						}
+					}
 				}
 			}
 			return { valid: errors.length === 0, errors };
 		},
 	};
 }
+
+/** @deprecated Use buildPublisherValidator instead. */
+export const buildPackageValidator = buildPublisherValidator;
 
 export function formatErrorList(errors: SchemaError[]): string {
 	return errors.map((e) => `  - ${e.path}: ${e.message}`).join('\n');

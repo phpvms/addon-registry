@@ -1,63 +1,72 @@
 import { describe, expect, test } from 'bun:test';
-import { checkFilenameMatchesName, checkPath, checkReservedName, schemaValidate } from '../validate.ts';
+import { checkPath, schemaValidate } from '../validate.ts';
 import { checkModuleManifest } from '../lib/module-manifest.ts';
 import { getSource, SUPPORTED_SOURCE_TYPES } from '../lib/sources/index.ts';
 import { parseRepository } from '../lib/sources/github.ts';
 
+const validAddon = {
+	name: 'reports',
+	description: 'Reports addon',
+	category: 'reporting',
+	license: 'MIT',
+	keywords: ['reports'],
+	source: { type: 'github-release', repository: 'acme/reports-addon' },
+	requirements: { php: '>=8.3', phpvms: '>=7.0.0' },
+};
+
+const validPublisher = {
+	meta: { name: 'Acme', url: 'https://acme.example.com', maintainers: ['acme-dev'] },
+	addons: [{ ...validAddon }],
+};
+
 describe('structural checks', () => {
-	test('checkPath accepts packages/{a}/{b}.yml', () => {
-		expect(checkPath('packages/acme/reports.yml')).toEqual([]);
+	test('checkPath accepts packages/{publisher}.yml', () => {
+		expect(checkPath('packages/phpvms.yml')).toEqual([]);
 	});
 
-	test('checkPath rejects orphan, nested, and .yaml paths', () => {
-		expect(checkPath('packages/orphan.yml').some((i) => i.rule === 'path-shape')).toBe(true);
+	test('checkPath rejects multi-segment, deep, and .yaml paths', () => {
+		expect(checkPath('packages/acme/reports.yml').some((i) => i.rule === 'path-shape')).toBe(true);
 		expect(checkPath('packages/acme/sub/reports.yml').some((i) => i.rule === 'path-shape')).toBe(true);
-		expect(checkPath('packages/acme/reports.yaml').some((i) => i.rule === 'path-extension')).toBe(true);
+		expect(checkPath('packages/phpvms.yaml').some((i) => i.rule === 'path-extension')).toBe(true);
 		expect(checkPath('schema/categories.yml').some((i) => i.rule === 'path-prefix')).toBe(true);
-	});
-
-	test('checkFilenameMatchesName binds name to path', () => {
-		expect(checkFilenameMatchesName('packages/acme/reports.yml', 'acme/reports')).toEqual([]);
-		expect(checkFilenameMatchesName('packages/acme/reports.yml', 'other/thing').some((i) => i.rule === 'name-path-mismatch')).toBe(true);
-	});
-
-	test('checkReservedName rejects the meta segment', () => {
-		expect(checkReservedName('acme/meta').some((i) => i.rule === 'reserved-name')).toBe(true);
-		expect(checkReservedName('acme/reports')).toEqual([]);
 	});
 });
 
 describe('schema validation', () => {
-	const valid = {
-		name: 'acme/reports',
-		description: 'Reports addon',
-		category: 'reporting',
-		license: 'MIT',
-		keywords: ['reports'],
-		source: { type: 'github-release', repository: 'acme/reports-addon' },
-		requirements: { php: '>=8.3', phpvms: '>=7.0.0' },
-	};
-
-	test('accepts a complete valid YAML', () => {
-		expect(schemaValidate(valid)).toEqual([]);
+	test('accepts a complete valid publisher YAML', () => {
+		expect(schemaValidate(validPublisher)).toEqual([]);
 	});
 
 	test('rejects unlisted category', () => {
-		expect(schemaValidate({ ...valid, category: 'foobar' }).some((i) => i.rule === 'schema')).toBe(true);
+		const data = { ...validPublisher, addons: [{ ...validAddon, category: 'foobar' }] };
+		expect(schemaValidate(data).some((i) => i.rule === 'schema')).toBe(true);
 	});
 
-	test('rejects malformed name and missing requirements', () => {
-		expect(schemaValidate({ ...valid, name: 'Acme/Reports' }).some((i) => i.rule === 'schema')).toBe(true);
-		expect(schemaValidate({ ...valid, name: 'reports' }).some((i) => i.rule === 'schema')).toBe(true);
-		expect(schemaValidate({ ...valid, requirements: { php: '>=8.3' } }).some((i) => i.rule === 'schema')).toBe(true);
+	test('rejects malformed addon name and missing requirements', () => {
+		expect(schemaValidate({ ...validPublisher, addons: [{ ...validAddon, name: 'Reports' }] }).some((i) => i.rule === 'schema')).toBe(true);
+		expect(schemaValidate({ ...validPublisher, addons: [{ ...validAddon, name: 'a' }] }).some((i) => i.rule === 'schema')).toBe(true);
+		expect(
+			schemaValidate({ ...validPublisher, addons: [{ ...validAddon, requirements: { php: '>=8.3' } }] }).some((i) => i.rule === 'schema'),
+		).toBe(true);
 	});
 
-	test('rejects unknown extra fields (release block removed)', () => {
-		expect(schemaValidate({ ...valid, release: { version: '1.0.0' } }).some((i) => i.rule === 'schema')).toBe(true);
+	test('rejects unknown extra fields on addon (release block removed)', () => {
+		expect(
+			schemaValidate({ ...validPublisher, addons: [{ ...validAddon, release: { version: '1.0.0' } }] }).some((i) => i.rule === 'schema'),
+		).toBe(true);
 	});
 
-	test('accepts revoked: true with revoked_reason', () => {
-		expect(schemaValidate({ ...valid, revoked: true, revoked_reason: 'unsafe' })).toEqual([]);
+	test('accepts revoked: true with revoked_reason on addon', () => {
+		expect(schemaValidate({ ...validPublisher, addons: [{ ...validAddon, revoked: true, revoked_reason: 'unsafe' }] })).toEqual([]);
+	});
+
+	test('rejects missing meta block', () => {
+		const { meta: _meta, ...noMeta } = validPublisher;
+		expect(schemaValidate(noMeta).some((i) => i.rule === 'schema')).toBe(true);
+	});
+
+	test('rejects empty addons array', () => {
+		expect(schemaValidate({ ...validPublisher, addons: [] }).some((i) => i.rule === 'schema')).toBe(true);
 	});
 });
 
@@ -125,29 +134,31 @@ describe('source registry', () => {
 
 describe('source.type schema', () => {
 	const base = {
-		name: 'acme/reports',
-		description: 'Reports addon',
-		category: 'reporting',
-		license: 'MIT',
-		keywords: ['reports'],
-		requirements: { php: '>=8.3', phpvms: '>=7.0.0' },
+		meta: { name: 'Acme', url: 'https://acme.example.com', maintainers: ['acme-dev'] },
+		addons: [
+			{
+				name: 'reports',
+				description: 'Reports addon',
+				category: 'reporting',
+				license: 'MIT',
+				keywords: ['reports'],
+				requirements: { php: '>=8.3', phpvms: '>=7.0.0' },
+			},
+		],
 	};
 
 	test('accepts a github-release source with a repository', () => {
-		expect(schemaValidate({ ...base, source: { type: 'github-release', repository: 'acme/reports-addon' } })).toEqual(
-			[],
-		);
+		const data = { ...base, addons: [{ ...base.addons[0], source: { type: 'github-release', repository: 'acme/reports-addon' } }] };
+		expect(schemaValidate(data)).toEqual([]);
 	});
 
 	test('rejects github-release without a repository', () => {
-		expect(schemaValidate({ ...base, source: { type: 'github-release' } }).some((i) => i.rule === 'schema')).toBe(true);
+		const data = { ...base, addons: [{ ...base.addons[0], source: { type: 'github-release' } }] };
+		expect(schemaValidate(data).some((i) => i.rule === 'schema')).toBe(true);
 	});
 
 	test('rejects an unknown source type at the schema layer', () => {
-		expect(
-			schemaValidate({ ...base, source: { type: 'gitlab-release', repository: 'acme/x' } }).some(
-				(i) => i.rule === 'schema',
-			),
-		).toBe(true);
+		const data = { ...base, addons: [{ ...base.addons[0], source: { type: 'gitlab-release', repository: 'acme/x' } }] };
+		expect(schemaValidate(data).some((i) => i.rule === 'schema')).toBe(true);
 	});
 });

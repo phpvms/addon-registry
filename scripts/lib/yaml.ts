@@ -16,7 +16,7 @@ export interface PackageRequirements {
 	[key: string]: unknown;
 }
 
-export interface PackageYaml {
+export interface AddonYaml {
 	name: string;
 	description: string;
 	category: string;
@@ -29,6 +29,20 @@ export interface PackageYaml {
 	archived?: boolean;
 	archived_reason?: string;
 }
+
+export interface MetaYaml {
+	name: string;
+	url: string;
+	maintainers: string[];
+}
+
+export interface PublisherYaml {
+	meta: MetaYaml;
+	addons: AddonYaml[];
+}
+
+/** @deprecated Use AddonYaml instead. */
+export type PackageYaml = AddonYaml;
 
 /** Parse YAML string into a plain JS value. Throws on syntax errors. */
 export function parseYaml<T = unknown>(content: string): T {
