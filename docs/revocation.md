@@ -6,10 +6,10 @@ addon-author guidance see [`plugin-authors.md`](./plugin-authors.md).
 
 ## When to use which
 
-| Flag       | Meaning                                                     | Host behaviour (out of scope here)                  |
-| ---------- | ----------------------------------------------------------- | --------------------------------------------------- |
-| `revoked`  | The addon is **critically unsafe** to install.              | Hosts refuse to install; warn for existing installs.|
-| `archived` | The addon is **no longer maintained**, but not unsafe.      | Hosts still allow install but display a notice.     |
+| Flag       | Meaning                                                | Host behaviour (out of scope here)                   |
+| ---------- | ------------------------------------------------------ | ---------------------------------------------------- |
+| `revoked`  | The addon is **critically unsafe** to install.         | Hosts refuse to install; warn for existing installs. |
+| `archived` | The addon is **no longer maintained**, but not unsafe. | Hosts still allow install but display a notice.      |
 
 `revoked` is for security issues and similar hard breaks — you would not
 want any operator to install this addon as-is. `archived` is for
@@ -21,12 +21,16 @@ without `revoked: true` is the maintained-as-archived case.
 
 ## How to revoke
 
-Open a PR that adds `revoked: true` and a `revoked_reason` to the YAML:
+Open a PR that adds `revoked: true` and a `revoked_reason` to the addon
+entry inside the publisher file:
 
 ```yaml
-# packages/acme/reports.yml (excerpt)
-revoked: true
-revoked_reason: "Arbitrary file write in v1.x. See https://example.com/security-advisory."
+# packages/acme.yml (excerpt)
+addons:
+  - name: reports
+    # ...
+    revoked: true
+    revoked_reason: 'Arbitrary file write in v1.x. See https://example.com/security-advisory.'
 ```
 
 Both fields are required when revoking. The validator skips upstream
@@ -36,9 +40,12 @@ longer exists or the release zip is broken).
 ## How to archive
 
 ```yaml
-# packages/acme/reports.yml (excerpt)
-archived: true
-archived_reason: "Author has stopped maintaining this addon. See acme/reports2 for a successor."
+# packages/acme.yml (excerpt)
+addons:
+  - name: reports
+    # ...
+    archived: true
+    archived_reason: 'Author has stopped maintaining this addon. See acme/reports2 for a successor.'
 ```
 
 `archived_reason` is required. Upstream checks are also skipped for

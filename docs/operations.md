@@ -5,8 +5,8 @@ This document is for registry maintainers. Addon authors should read
 
 ## Repository overview
 
-- `packages/{author}/{name}.yml` — addon entries.
-- `packages/{author}/meta.yml` — optional namespace metadata (not validated).
+- `packages/{publisher}.yml` — one file per publisher; addon entries live
+  under the `addons:` key; publisher metadata is in the required `meta:` block.
 - `schema/` — the JSON schema + the closed `category` enum.
 - `scripts/validate.ts` — the validator; helpers live in `scripts/lib/`.
 - `scripts/lib/sources/` — source implementations (how the release zip is
@@ -33,10 +33,10 @@ check runs inside GitHub Actions via a single Bun script.
 
 ## Workflows
 
-| Workflow      | Job        | Trigger                              | Does                                              |
-| ------------- | ---------- | ------------------------------------ | ------------------------------------------------- |
-| `Validate PR` | `validate` | PR touching `packages/**`/`schema/**`| Runs `bun scripts/validate.ts` on changed YAMLs.  |
-| `CI`          | `test`     | every PR and push to `main`          | `bun run typecheck` + `bun test`.                 |
+| Workflow      | Job        | Trigger                               | Does                                             |
+| ------------- | ---------- | ------------------------------------- | ------------------------------------------------ |
+| `Validate PR` | `validate` | PR touching `packages/**`/`schema/**` | Runs `bun scripts/validate.ts` on changed YAMLs. |
+| `CI`          | `test`     | every PR and push to `main`           | `bun run typecheck` + `bun test`.                |
 
 Both workflows use the default `GITHUB_TOKEN` only. No repository secrets
 or variables are required.
@@ -66,7 +66,7 @@ Configure on `main` via Settings -> Branches -> Branch protection rules:
 bun install
 
 # Validate one file (read-only; hits the GitHub API for the source repo)
-bun scripts/validate.ts packages/acme/reports.yml
+bun scripts/validate.ts packages/acme.yml
 
 # Validate every package under packages/
 bun scripts/validate.ts

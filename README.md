@@ -9,8 +9,7 @@ external infrastructure. A single Bun script performs every check.
 
 ## Layout
 
-- `packages/{author}/{name}.yml` — addon entries
-- `packages/{author}/meta.yml` — optional namespace metadata (display, maintainers)
+- `packages/{publisher}.yml` — one file per publisher; contains a required `meta` block and an `addons` list
 - `schema/` — the JSON schema + the closed `category` enum
 - `scripts/validate.ts` — the validator (plus small helpers in `scripts/lib/`)
 - `.github/workflows/` — CI definitions
@@ -20,11 +19,11 @@ external infrastructure. A single Bun script performs every check.
 On every PR touching `packages/**`, `scripts/validate.ts` validates each
 changed package YAML:
 
-1. **Structural** — path shape, filename matches `name`, reserved names
+1. **Structural** — path shape (`packages/{publisher}.yml`), JSON schema, duplicate addon names rejected
 2. **JSON schema** — `schema/package.schema.json` + the `category` enum
 3. **Source release** — repo is public and has a release with a zip asset
 4. **Zip inspection** — `module.json` at the root, no forbidden paths,
-   `registry_id` matches the registry `name`
+   `registry_id` matches the full `{publisher}/{addon-name}` identity
 5. **Migration lint** — static allow-list checks on `Database/Migrations/`
 
 `revoked`/`archived` entries skip checks 3–5. The job exits non-zero on
@@ -34,7 +33,7 @@ any failure (a plain pass/fail check, no PR comment).
 
 ```bash
 bun install
-bun scripts/validate.ts packages/acme/reports.yml   # validate one file
+bun scripts/validate.ts packages/acme.yml           # validate one file
 bun scripts/validate.ts                             # validate every package
 bun test                                            # unit tests
 bun run typecheck                                   # tsc --noEmit
