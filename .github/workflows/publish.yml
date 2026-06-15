@@ -1,0 +1,48 @@
+name: Publish
+
+# On merge to main, convert changed packages/*.yml to JSON and POST them
+# to the registry webhook. URL + secret come from repo secrets.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile
+
+      - name: Publish changed package YAML to webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.PUBLISH_WEBHOOK_URL }}
+          WEBHOOK_SECRET: ${{ secrets.PUBLISH_WEBHOOK_SECRET }}
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+          COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
+          COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: bun scripts/publish.ts
+
+      - name: Upload catalogue snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: registry-catalogue
+          path: dist/registry.json
+          if-no-files-found: error

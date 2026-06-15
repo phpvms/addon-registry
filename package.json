@@ -9,6 +9,7 @@
 	},
 	"scripts": {
 		"validate": "bun scripts/validate.ts",
+		"publish": "bun scripts/publish.ts",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test",
 		"format": "prettier --write ."
