@@ -75,6 +75,7 @@ Examples: `acme/reports`, `phpvms/core-tools`, `crew-tools/dispatch`.
 ```yaml
 # packages/acme.yml
 meta:
+  publisher: acme
   name: Acme Corp
   url: https://acme.example.com
   maintainers:
@@ -102,14 +103,20 @@ latest GitHub release); it is the only supported source type today.
 
 ### Allowed `category` values
 
-Pick exactly one. The current list lives in `schema/categories.yml`:
+Pick exactly one. The allowed values are defined as an enum in
+`schema/package.schema.json`:
 
 `accounting`, `communications`, `crew`, `dev-tools`, `integration`,
 `operations`, `pireps`, `reporting`, `scheduling`, `templates`, `ui`,
 `widget`, `other`.
 
-To request a new category, open a separate PR adding it to that file
-before submitting your package YAML.
+To request a new category, open a separate PR adding it to the `enum`
+in `schema/package.schema.json` before submitting your package YAML.
+
+### `keywords` limits
+
+`keywords` is a free-form list of tags. At most **5** keywords, each up
+to **12 characters**. Order is preserved into the published index.
 
 ### meta block (required namespace metadata)
 
@@ -118,6 +125,7 @@ Every publisher file must include a `meta` block at the top level:
 ```yaml
 # packages/acme.yml
 meta:
+  publisher: acme
   name: Acme Corp
   url: https://acme.example.com
   maintainers:
@@ -127,16 +135,19 @@ addons:
   - ...
 ```
 
-`name` is a display name, `url` must be a valid URI, and `maintainers`
-is a non-empty list of GitHub usernames. The `meta` block is required
-and validated by CI.
+`publisher` is the namespace identifier and **must match the file name
+stem** — i.e. `packages/acme.yml` requires `publisher: acme` (lowercase
+letters, digits, and hyphens; at least two characters). `name` is a
+display name, `url` must be a valid URI, and `maintainers` is a non-empty
+list of GitHub usernames. The `meta` block is required and validated by CI.
 
 ### What CI checks at PR time
 
 1. **Schema** — required fields, valid addon `name` regex, allowed
    category, requirements present, `meta` block present and valid.
-2. **Structural** — file path matches `packages/{publisher}.yml`; no
-   duplicate addon `name` values within the publisher file.
+2. **Structural** — file path matches `packages/{publisher}.yml`;
+   `meta.publisher` equals the file name stem; no duplicate addon `name`
+   values within the publisher file.
 3. **Source repo exists and is public.**
 4. **Latest release** — at least one published release with a zip asset.
 5. **Zip integrity** — downloadable, contains `module.json` at the root,

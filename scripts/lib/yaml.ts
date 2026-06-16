@@ -31,6 +31,7 @@ export interface AddonYaml {
 }
 
 export interface MetaYaml {
+	publisher: string;
 	name: string;
 	url: string;
 	maintainers: string[];

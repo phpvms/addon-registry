@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { checkPath, schemaValidate, filterPublisherYamlPaths, checkDuplicateAddonNames } from '../validate.ts';
+import { checkPath, schemaValidate, filterPublisherYamlPaths, checkDuplicateAddonNames, checkPublisherMatchesStem } from '../validate.ts';
 import { checkModuleManifest } from '../lib/module-manifest.ts';
 import { getSource, SUPPORTED_SOURCE_TYPES } from '../lib/sources/index.ts';
 import { parseRepository } from '../lib/sources/github.ts';
@@ -15,7 +15,7 @@ const validAddon = {
 };
 
 const validPublisher = {
-	meta: { name: 'Acme', url: 'https://acme.example.com', maintainers: ['acme-dev'] },
+	meta: { publisher: 'acme', name: 'Acme', url: 'https://acme.example.com', maintainers: ['acme-dev'] },
 	addons: [{ ...validAddon }],
 };
 
@@ -65,8 +65,33 @@ describe('schema validation', () => {
 		expect(schemaValidate(noMeta).some((i) => i.rule === 'schema')).toBe(true);
 	});
 
+	test('rejects missing meta.publisher', () => {
+		const { publisher: _publisher, ...metaNoPublisher } = validPublisher.meta;
+		expect(schemaValidate({ ...validPublisher, meta: metaNoPublisher }).some((i) => i.rule === 'schema')).toBe(true);
+	});
+
+	test('rejects a malformed meta.publisher', () => {
+		const data = { ...validPublisher, meta: { ...validPublisher.meta, publisher: 'Acme Corp' } };
+		expect(schemaValidate(data).some((i) => i.rule === 'schema')).toBe(true);
+	});
+
 	test('rejects empty addons array', () => {
 		expect(schemaValidate({ ...validPublisher, addons: [] }).some((i) => i.rule === 'schema')).toBe(true);
+	});
+
+	test('rejects more than 5 keywords', () => {
+		const data = { ...validPublisher, addons: [{ ...validAddon, keywords: ['a', 'b', 'c', 'd', 'e', 'f'] }] };
+		expect(schemaValidate(data).some((i) => i.rule === 'schema')).toBe(true);
+	});
+
+	test('rejects a keyword longer than 12 chars', () => {
+		const data = { ...validPublisher, addons: [{ ...validAddon, keywords: ['thirteenchars'] }] };
+		expect(schemaValidate(data).some((i) => i.rule === 'schema')).toBe(true);
+	});
+
+	test('accepts 5 keywords of 12 chars', () => {
+		const data = { ...validPublisher, addons: [{ ...validAddon, keywords: ['abcdefghijkl', 'b', 'c', 'd', 'e'] }] };
+		expect(schemaValidate(data)).toEqual([]);
 	});
 });
 
@@ -134,7 +159,7 @@ describe('source registry', () => {
 
 describe('source.type schema', () => {
 	const base = {
-		meta: { name: 'Acme', url: 'https://acme.example.com', maintainers: ['acme-dev'] },
+		meta: { publisher: 'acme', name: 'Acme', url: 'https://acme.example.com', maintainers: ['acme-dev'] },
 		addons: [
 			{
 				name: 'reports',
@@ -216,6 +241,18 @@ describe('checkDuplicateAddonNames', () => {
 	test('skips addons with missing names', () => {
 		const addons = [{ name: 'reports' }, { name: null }, { name: undefined }];
 		expect(checkDuplicateAddonNames(addons)).toEqual([]);
+	});
+});
+
+describe('checkPublisherMatchesStem', () => {
+	test('passes when meta.publisher equals the file stem', () => {
+		expect(checkPublisherMatchesStem('acme', 'acme')).toEqual([]);
+	});
+
+	test('emits publisher-mismatch when they differ', () => {
+		const issues = checkPublisherMatchesStem('acme', 'other');
+		expect(issues.length).toBe(1);
+		expect(issues[0]!.rule).toBe('publisher-mismatch');
 	});
 });
 

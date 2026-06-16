@@ -9,8 +9,13 @@
 		"meta": {
 			"type": "object",
 			"additionalProperties": false,
-			"required": ["name", "url", "maintainers"],
+			"required": ["publisher", "name", "url", "maintainers"],
 			"properties": {
+				"publisher": {
+					"type": "string",
+					"pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+					"description": "Publisher namespace identifier. Must match the packages/{publisher}.yml file name stem. Lowercase letters, digits, and hyphens; at least two characters; must start and end with a letter or digit."
+				},
 				"name": {
 					"type": "string",
 					"minLength": 1,
@@ -55,10 +60,11 @@
 					"minLength": 1,
 					"maxLength": 500
 				},
-				"category": {
-					"type": "string",
-					"description": "Single category drawn from schema/categories.yml. Validated dynamically at runtime against that file."
-				},
+			"category": {
+				"type": "string",
+				"enum": ["accounting", "communications", "crew", "dev-tools", "integration", "operations", "pireps", "reporting", "scheduling", "templates", "ui", "widget", "other"],
+				"description": "Single category for the addon."
+			},
 				"license": {
 					"type": "string",
 					"minLength": 1,
@@ -66,11 +72,13 @@
 				},
 				"keywords": {
 					"type": "array",
+					"maxItems": 5,
 					"items": {
 						"type": "string",
-						"minLength": 1
+						"minLength": 1,
+						"maxLength": 12
 					},
-					"description": "Free-form tags. Order is preserved into the published index."
+					"description": "Free-form tags. Order is preserved into the published index. At most 5 keywords, each up to 12 characters."
 				},
 				"source": {
 					"type": "object",

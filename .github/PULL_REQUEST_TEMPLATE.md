@@ -7,7 +7,7 @@ section below that matches your PR and delete the others. -->
 - [ ] Adding or updating a publisher file (`packages/{publisher}.yml`)
 - [ ] Updating an existing addon's metadata (description, keywords, etc.)
 - [ ] Marking an addon `revoked` or `archived`
-- [ ] Adding a category to `schema/categories.yml`
+- [ ] Adding a category to `schema/package.schema.json`
 - [ ] Maintainer change (schema, scripts, workflows, docs)
 
 ---

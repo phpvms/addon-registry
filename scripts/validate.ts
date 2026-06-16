@@ -79,6 +79,23 @@ export function checkPath(yamlRelPath: string): CheckIssue[] {
 	return issues;
 }
 
+/**
+ * Verify `meta.publisher` matches the file name stem (`packages/{publisher}.yml`).
+ * Schema validation runs first, so by the time this is called `metaPublisher`
+ * is already a present, well-formed string.
+ */
+export function checkPublisherMatchesStem(stem: string, metaPublisher: unknown): CheckIssue[] {
+	if (metaPublisher !== stem) {
+		return [
+			{
+				rule: 'publisher-mismatch',
+				message: `meta.publisher "${String(metaPublisher)}" must match the file name stem "${stem}"`,
+			},
+		];
+	}
+	return [];
+}
+
 /** Run AJV schema validation (+ category enum) and surface issues. */
 export function schemaValidate(data: unknown): CheckIssue[] {
 	const validator = buildPublisherValidator();
@@ -140,6 +157,9 @@ export async function runPublisherChecks(opts: { repoRoot: string; yamlRelPath: 
 	// 4. Derive publisher from file stem
 	const publisher = path.basename(yamlRelPath).replace(/\.ya?ml$/i, '');
 	outcome.publisher = publisher;
+
+	// 4b. meta.publisher must match the file name stem
+	outcome.fileIssues.push(...checkPublisherMatchesStem(publisher, data.meta?.publisher));
 
 	// 5. Duplicate addon-name detection
 	outcome.fileIssues.push(...checkDuplicateAddonNames(data.addons));
