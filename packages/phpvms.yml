@@ -1,10 +1,23 @@
 meta:
   publisher: phpvms
-  name: phpVMS
+  name: phpvms
   url: https://www.phpvms.net
   maintainers:
     - nabeelio
 addons:
+  - name: acars
+    description: the vmsacars configuration panel
+    category: operations
+    license: closed
+    keywords:
+      - acars
+      - phpvms
+    source:
+      type: github-release
+      repository: phpvms/acars
+    requirements:
+      php: ^8.2
+      phpvms: >=8.0
   - name: smoke-test
     description: Disposable smoke-test fixture used to verify the addon-registry pipeline. Not a real plugin.
     category: dev-tools
