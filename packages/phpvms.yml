@@ -16,8 +16,8 @@ addons:
       type: github-release
       repository: phpvms/acars
     requirements:
-      php: ^8.2
-      phpvms: >=8.0
+      php: '^8.2'
+      phpvms: '>=8.0'
   - name: smoke-test
     description: Disposable smoke-test fixture used to verify the addon-registry pipeline. Not a real plugin.
     category: dev-tools
