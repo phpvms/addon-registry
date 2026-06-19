@@ -15,8 +15,8 @@
 		"forceConsistentCasingInFileNames": true,
 		"isolatedModules": true,
 		"noEmit": true,
-		"types": ["node"]
+		"types": ["bun-types", "node"]
 	},
 	"include": ["scripts/**/*.ts"],
-	"exclude": ["node_modules", "dist", "coverage", "scripts/tests"]
+	"exclude": ["node_modules", "dist", "coverage"]
 }

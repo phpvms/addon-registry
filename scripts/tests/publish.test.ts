@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { diffRange, buildPayload, postPayload } from '../publish.ts';
+import { diffRange, buildPayload, postPayload } from '@phpvms/registry-client';
 
 const ZERO_SHA = '0000000000000000000000000000000000000000';
 

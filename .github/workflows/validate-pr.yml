@@ -5,10 +5,10 @@ on:
     branches: [main]
     paths:
       - 'packages/**'
-      - 'schema/**'
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: validate-pr-${{ github.event.pull_request.number }}
@@ -25,10 +25,12 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - run: bun install --frozen-lockfile
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Validate changed package YAML
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: bun scripts/validate.ts
+        run: bun run validate

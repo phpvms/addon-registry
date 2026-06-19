@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: publish-${{ github.ref }}
@@ -28,9 +29,12 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - run: bun install --frozen-lockfile
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish changed package YAML to webhook
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WEBHOOK_URL: ${{ secrets.PUBLISH_WEBHOOK_URL }}
           WEBHOOK_SECRET: ${{ secrets.PUBLISH_WEBHOOK_SECRET }}
           BASE_SHA: ${{ github.event.before }}
@@ -38,7 +42,7 @@ jobs:
           COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
           COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: bun scripts/publish.ts
+        run: bun run publish
 
       - name: Upload catalogue snapshot
         uses: actions/upload-artifact@v4

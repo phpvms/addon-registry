@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { checkPath, schemaValidate, filterPublisherYamlPaths, checkDuplicateAddonNames, checkPublisherMatchesStem } from '../validate.ts';
-import { checkModuleManifest } from '../lib/module-manifest.ts';
-import { getSource, SUPPORTED_SOURCE_TYPES } from '../lib/sources/index.ts';
-import { parseRepository } from '../lib/sources/github.ts';
+import {
+	checkPath,
+	schemaValidate,
+	filterPublisherYamlPaths,
+	checkDuplicateAddonNames,
+	checkPublisherMatchesStem,
+} from '@phpvms/registry-client';
 
 const validAddon = {
 	name: 'reports',
@@ -92,68 +95,6 @@ describe('schema validation', () => {
 	test('accepts 5 keywords of 12 chars', () => {
 		const data = { ...validPublisher, addons: [{ ...validAddon, keywords: ['abcdefghijkl', 'b', 'c', 'd', 'e'] }] };
 		expect(schemaValidate(data)).toEqual([]);
-	});
-});
-
-describe('module.json manifest', () => {
-	const valid = {
-		registry_id: 'acme/reports',
-		schema_version: 1,
-		type: 'module',
-		description: 'Reports addon',
-	};
-
-	test('accepts a complete valid manifest', () => {
-		expect(checkModuleManifest(valid, 'acme/reports').valid).toBe(true);
-	});
-
-	test('requires registry_id to equal the registry name', () => {
-		const { errors } = checkModuleManifest({ ...valid, registry_id: 'other/x' }, 'acme/reports');
-		expect(errors.some((e) => e.rule === 'module-identity')).toBe(true);
-	});
-
-	test('requires schema_version, type, and description', () => {
-		const r1 = checkModuleManifest({ ...valid, schema_version: '1' }, 'acme/reports');
-		expect(r1.errors.some((e) => e.rule === 'module-schema-version')).toBe(true);
-		const r2 = checkModuleManifest({ ...valid, type: 'plugin' }, 'acme/reports');
-		expect(r2.errors.some((e) => e.rule === 'module-type')).toBe(true);
-		const r3 = checkModuleManifest({ ...valid, description: '  ' }, 'acme/reports');
-		expect(r3.errors.some((e) => e.rule === 'module-description')).toBe(true);
-	});
-
-	test('accepts type theme', () => {
-		expect(checkModuleManifest({ ...valid, type: 'theme' }, 'acme/reports').valid).toBe(true);
-	});
-
-	test('enforces database.tables author prefix', () => {
-		const ok = checkModuleManifest({ ...valid, database: { tables: ['acme_reports_runs'] } }, 'acme/reports');
-		expect(ok.valid).toBe(true);
-		const bad = checkModuleManifest({ ...valid, database: { tables: ['users', 'acme_reports_runs'] } }, 'acme/reports');
-		expect(bad.errors.some((e) => e.rule === 'module-tables')).toBe(true);
-	});
-
-	test('rejects a non-object manifest', () => {
-		expect(checkModuleManifest(null, 'acme/reports').valid).toBe(false);
-	});
-});
-
-describe('source registry', () => {
-	test('resolves the github-release source by type', () => {
-		const source = getSource('github-release');
-		expect(source?.type).toBe('github-release');
-	});
-
-	test('returns undefined for an unknown source type', () => {
-		expect(getSource('gitlab-release')).toBeUndefined();
-	});
-
-	test('advertises supported source types', () => {
-		expect(SUPPORTED_SOURCE_TYPES).toContain('github-release');
-	});
-
-	test('parseRepository splits owner/repo and rejects malformed input', () => {
-		expect(parseRepository('acme/reports-addon')).toEqual({ owner: 'acme', repo: 'reports-addon' });
-		expect(() => parseRepository('not-a-repo')).toThrow();
 	});
 });
 
