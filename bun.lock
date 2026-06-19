@@ -5,7 +5,7 @@
     "": {
       "name": "@phpvms/addon-registry",
       "dependencies": {
-        "@phpvms/registry-client": "main",
+        "@phpvms/registry-client": "^0.1.0",
       },
       "devDependencies": {
         "@types/bun": "^1.1.10",
@@ -15,19 +15,14 @@
       },
     },
   },
-  "overrides": {
-    "@phpvms/releases": "main",
-    "@phpvms/schemas": "main",
-    "@phpvms/validations": "main",
-  },
   "packages": {
-    "@phpvms/registry-client": ["@phpvms/registry-client@0.1.0-main.3", "https://npm.pkg.github.com/download/@phpvms/registry-client/0.1.0-main.3/df92dcffc4fb21f0268f64b73726bbfde976cb43", { "dependencies": { "@phpvms/releases": "0.1.0", "@phpvms/schemas": "0.1.0", "@phpvms/validations": "0.1.0", "ajv": "^8.20.0", "ajv-formats": "^3.0.1", "pino": "^10.3.1", "yaml": "^2.6.0" }, "bin": { "registry-publish": "src/publish.ts", "registry-validate": "src/validate.ts" } }, "sha512-HdL3lJPzI0JU7UHfDR5+8qnSF/4GbR9mBF/uGwPcqthKPVUbvWSwll3Keh1ei6cynPPBdCbuak19DHBrW6YzTQ=="],
+    "@phpvms/registry-client": ["@phpvms/registry-client@0.1.0", "https://npm.pkg.github.com/download/@phpvms/registry-client/0.1.0/bc6d70e18a48da27fb901827bf9b331b6f7eb98f", { "dependencies": { "@phpvms/releases": "0.1.0", "@phpvms/schemas": "0.1.0", "@phpvms/validations": "0.1.0", "ajv": "^8.20.0", "ajv-formats": "^3.0.1", "pino": "^10.3.1", "yaml": "^2.6.0" }, "bin": { "registry-publish": "src/publish.ts", "registry-validate": "src/validate.ts" } }, "sha512-b9RcCAprfqJgg6VNQMOboKGuPefWvld2eNk9DpKgKVnIOpUdoFJtiCITyhRlmcPbous3qKJOwK/nlspQLkC4kg=="],
 
-    "@phpvms/releases": ["@phpvms/releases@0.1.0-main.3", "https://npm.pkg.github.com/download/@phpvms/releases/0.1.0-main.3/12c17bd7346db9a39dad334e74d497ffe298214a", { "dependencies": { "@phpvms/schemas": "0.1.0" } }, "sha512-ciGz0FawnXLeV3tE8gzHZLnEswGnBWMjDqYHqp0tn2LLYkeNpJeTOFDsCj1ykfzy2LAsKVwmoAwBZEU/XJeMuA=="],
+    "@phpvms/releases": ["@phpvms/releases@0.1.0", "https://npm.pkg.github.com/download/@phpvms/releases/0.1.0/3210a2b7ec5f38dcb77a6106a09f82702759b454", { "dependencies": { "@phpvms/schemas": "0.1.0" } }, "sha512-7CagstsWN1zI6M6IDKh1u6GmeHZ2fYuiJXIyzDGdDMygmmTE/i1v9FAZF/iIk5ygRdabN/v44Y5I7R+bEjcy5w=="],
 
-    "@phpvms/schemas": ["@phpvms/schemas@0.1.0-main.3", "https://npm.pkg.github.com/download/@phpvms/schemas/0.1.0-main.3/41b738b696d2d69bd5db7d9aa66a0a4e9b02c90b", {}, "sha512-os0uocZw2Xkn89ZeIyT/aG2mB035O5ravq+fzM9zIgatJmGk2x4+04P8311lMKtr233PhzZoIVQrg3ptwDeNtQ=="],
+    "@phpvms/schemas": ["@phpvms/schemas@0.1.0", "https://npm.pkg.github.com/download/@phpvms/schemas/0.1.0/79f0a19188963783dcd4cfc5df160945c81cdf87", {}, "sha512-1zxeA4WqcEl11TzgR6VUuqh3mdUE2V55mwEkSzh1zlBHIwktDhVSSHVt1TMxTM0VrHZLhwfTA3F9fzgWdLUE3g=="],
 
-    "@phpvms/validations": ["@phpvms/validations@0.1.0-main.3", "https://npm.pkg.github.com/download/@phpvms/validations/0.1.0-main.3/f32ab7f345f26f9524094ab27bdea476b6583a82", { "dependencies": { "@phpvms/schemas": "0.1.0", "ajv": "^8.20.0", "ajv-formats": "^3.0.1", "php-parser": "^3.2.2", "yauzl": "^3.3.0", "zod": "^4.4.3" } }, "sha512-0cT9Wp18dfTggkokpI1ciD5C1Wijus5WEWHRItD53XUazTS1EV5l7WfM8iJ/VqgdKkfiEZFBQkmL124T0M0O6w=="],
+    "@phpvms/validations": ["@phpvms/validations@0.1.0", "https://npm.pkg.github.com/download/@phpvms/validations/0.1.0/e6903aad0c4f7a726c1f4af5d141c7fa71dad2e4", { "dependencies": { "@phpvms/schemas": "0.1.0", "ajv": "^8.20.0", "ajv-formats": "^3.0.1", "php-parser": "^3.2.2", "yauzl": "^3.3.0", "zod": "^4.4.3" } }, "sha512-l1bQpUBWoMUMgz5wxLaz6LieiUqlkTzBLNCqI6mHHlC6PZI8qxDmQ0uO2lb+lWxwNIaSxMYx2lKbF9WnzRKUOg=="],
 
     "@pinojs/redact": ["@pinojs/redact@0.4.0", "", {}, "sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg=="],
 
