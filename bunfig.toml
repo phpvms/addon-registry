@@ -1,6 +1,6 @@
 [install]
 minimumReleaseAge = 1209600
-minimumReleaseAgeExcludes = ["@phpvms/registry-client"]
+minimumReleaseAgeExcludes = ["@phpvms/registry-client", "@phpvms/releases", "@phpvms/schemas", "@phpvms/validations"]
 
 [install.scopes]
 "@phpvms" = { url = "https://npm.pkg.github.com/", token = "$GITHUB_TOKEN" }
