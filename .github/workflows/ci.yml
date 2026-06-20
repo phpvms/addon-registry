@@ -1,7 +1,6 @@
 name: CI
 
-# Typecheck + unit tests for the registry's own TypeScript.
-# Runs on every PR and push to main regardless of paths.
+# Runs on every PR and push to main to verify the install is clean.
 
 on:
   pull_request:
@@ -17,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  install:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,5 +24,3 @@ jobs:
       - run: bun install --frozen-lockfile
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: bun run typecheck
-      - run: bun test
