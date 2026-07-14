@@ -12,6 +12,7 @@ addons:
     keywords:
       - smoke-test
       - registry
+      - phpvms
     source:
       type: github-release
       repository: nabeelio/phpvms-registry-smoke-test
