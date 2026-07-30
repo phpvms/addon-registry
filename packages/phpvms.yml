@@ -7,11 +7,12 @@ meta:
 addons:
   - name: acars
     description: phpvms plugin for acars v3+
-    category: acars
+    category: operations
     license: MIT
     keywords:
       - acars
-      - phpvms
+      - pireps
+      - operations
     source:
       type: push
     requirements:
