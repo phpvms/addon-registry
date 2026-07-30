@@ -5,6 +5,20 @@ meta:
   maintainers:
     - nabeelio
 addons:
+  - name: acars
+    description: phpvms plugin for acars v3+
+    category: operations
+    license: MIT
+    keywords:
+      - acars
+      - pireps
+      - operations
+    source:
+      type: push
+    requirements:
+      php: '>=8.4'
+      phpvms: '>=8.0'
+
   - name: smoke-test
     description: Disposable smoke-test fixture used to verify the addon-registry pipeline. Not a real plugin.
     category: dev-tools
@@ -17,5 +31,5 @@ addons:
       type: github-release
       repository: nabeelio/phpvms-registry-smoke-test
     requirements:
-      php: ^8.2
-      phpvms: ^7.0
+      php: '>=8.4'
+      phpvms: '>=8.0'
