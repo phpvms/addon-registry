@@ -15,8 +15,8 @@ addons:
     source:
       type: push
     requirements:
-      php: >=8.4
-      phpvms: >=8.0
+      php: '>=8.4'
+      phpvms: '>=8.0'
 
   - name: smoke-test
     description: Disposable smoke-test fixture used to verify the addon-registry pipeline. Not a real plugin.
@@ -30,5 +30,5 @@ addons:
       type: github-release
       repository: nabeelio/phpvms-registry-smoke-test
     requirements:
-      php: >=8.4
-      phpvms: >=8.0
+      php: '>=8.4'
+      phpvms: '>=8.0'
