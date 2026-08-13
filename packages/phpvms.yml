@@ -7,6 +7,7 @@ meta:
 addons:
   - name: acars
     description: phpvms plugin for acars v3+
+    icon: https://phpvms.net/images/logo.svg
     category: operations
     license: MIT
     keywords:
